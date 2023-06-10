@@ -36,4 +36,6 @@ type INFTables interface {
 	FilterSetTrustIP() *nftables.Set
 	FilterSetMyManagerIP() *nftables.Set
 	FilterSetMyForwardIP() *nftables.Set
+
+	Do(f func(conn *nftables.Conn) error) error
 }

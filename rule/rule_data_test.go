@@ -18,6 +18,6 @@ func TestNewRuleData(t *testing.T) {
 	rD := NewRuleData(id, res)
 	assert.Equal(t, rD.ID, id)
 
-	assert.Equal(t, rD.Expressions[0], &expr.Meta{Key: 0xf, SourceRegister: false, Register: 0x1})
-	assert.Equal(t, rD.Expressions[1], &expr.Cmp{Op: 0x0, Register: 0x1, Data: []uint8{0x2}})
+	assert.Equal(t, rD.Exprs[0], &expr.Meta{Key: 0xf, SourceRegister: false, Register: 0x1})
+	assert.Equal(t, rD.Exprs[1], &expr.Cmp{Op: 0x0, Register: 0x1, Data: []uint8{0x2}})
 }

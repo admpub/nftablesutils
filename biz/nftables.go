@@ -213,6 +213,7 @@ func (nft *NFTables) apply() error {
 	if err != nil {
 		return err
 	}
+
 	// release network namespace finally
 	defer nft.networkNamespaceRelease()
 
@@ -1052,4 +1053,15 @@ func (nft *NFTables) FilterSetMyManagerIP() *nftables.Set {
 
 func (nft *NFTables) FilterSetMyForwardIP() *nftables.Set {
 	return nft.filterSetMyForwardIP
+}
+
+func (nft *NFTables) Do(f func(conn *nftables.Conn) error) error {
+	// bind network namespace if it was set in config
+	c, err := nft.networkNamespaceBind()
+	if err != nil {
+		return err
+	}
+	// release network namespace finally
+	defer nft.networkNamespaceRelease()
+	return f(c)
 }

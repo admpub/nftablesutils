@@ -41,7 +41,7 @@ func add(c *nftables.Conn, table *nftables.Table, chain *nftables.Chain, ruleDat
 	c.AddRule(&nftables.Rule{
 		Table:    table,
 		Chain:    chain,
-		Exprs:    ruleData.Expressions,
+		Exprs:    ruleData.Exprs,
 		UserData: ruleData.ID,
 	})
 }
@@ -120,6 +120,10 @@ func (r *RuleTarget) Update(c *nftables.Conn, rules []RuleData) (bool, int, int,
 // Get the nftables table and chain associated with this RuleTarget
 func (r *RuleTarget) GetTableAndChain() (*nftables.Table, *nftables.Chain) {
 	return r.table, r.chain
+}
+
+func (r *RuleTarget) List(c *nftables.Conn) ([]*nftables.Rule, error) {
+	return c.GetRules(r.table, r.chain)
 }
 
 func genRuleDelta(existingRules []*nftables.Rule, newRules []RuleData) (add []RuleData, remove []*nftables.Rule) {
