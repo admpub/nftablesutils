@@ -8,7 +8,6 @@ import (
 	"github.com/google/nftables"
 	"github.com/mdlayher/netlink"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/sys/unix"
 )
 
 func TestAddRule(t *testing.T) {
@@ -33,7 +32,7 @@ func TestAddRule(t *testing.T) {
 
 	c := testDialWithWant(t, want)
 
-	res, err := utils.CompareProtocolFamily(unix.NFPROTO_IPV4)
+	res, err := utils.CompareProtocolFamily(byte(nftables.TableFamilyIPv4))
 	assert.Nil(t, err)
 	rD := NewRuleData([]byte{0xd, 0xe, 0xa, 0xd}, res)
 

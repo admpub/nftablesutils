@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	utils "github.com/admpub/nftablesutils"
+	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/sys/unix"
 )
 
 func TestNewRuleData(t *testing.T) {
-	res, err := utils.CompareProtocolFamily(unix.NFPROTO_IPV4)
+	res, err := utils.CompareProtocolFamily(byte(nftables.TableFamilyIPv4))
 	assert.Nil(t, err)
 
 	id := []byte{0xd, 0xe, 0xa, 0xd}

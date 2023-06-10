@@ -739,6 +739,9 @@ func (nft *NFTables) outputPublicRules(c *nftables.Conn, iface string) error {
 
 // sdnRules to apply.
 func (nft *NFTables) sdnRules(c *nftables.Conn) error {
+	if len(nft.myIface) == 0 {
+		return nil
+	}
 	// cmd: nft add rule ip filter input meta iifname "wg0" ip protocol icmp \
 	// icmp type echo-request ct state new accept
 	// --
@@ -782,10 +785,10 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	c.AddRule(rule)
 
 	// cmd: nft add rule ip filter input meta iifname "wg0" \
-	// ip protocol tcp tcp dport { 80, 8080 } ip saddr @wgmanager_ipset \
+	// ip protocol tcp tcp dport { 80, 8080 } ip saddr @mymanager_ipset \
 	// ct state { new, established } accept
 	// --
-	// iifname "wg0" tcp dport { https, 8443 } ip saddr @wgmanager_ipset ct state { established, new } accept
+	// iifname "wg0" tcp dport { https, 8443 } ip saddr @mymanager_ipset ct state { established, new } accept
 	ctStateSet = GetConntrackStateSet(nft.tFilter)
 	elems = GetConntrackStateSetElems(
 		[]string{"new", "established"})
@@ -845,7 +848,7 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	c.AddRule(rule)
 
 	// cmd: nft add rule ip filter output meta oifname "wg0" \
-	// ip protocol tcp tcp sport { 80, 8080 } ip daddr @wgmanager_ipset \
+	// ip protocol tcp tcp sport { 80, 8080 } ip daddr @mymanager_ipset \
 	// ct state established accept
 	// --
 	// oifname "wg0" tcp sport { https, 8443 } ct state established accept

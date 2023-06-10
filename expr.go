@@ -3,8 +3,7 @@ package nftablesutils
 import (
 	"net"
 
-	"golang.org/x/sys/unix"
-
+	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
 )
 
@@ -147,7 +146,7 @@ func ExprSNAT(addrMin, addrMax uint32) *expr.NAT {
 	// [ nat snat ip addr_min reg 1 addr_max reg 0 ]
 	return &expr.NAT{
 		Type:       expr.NATTypeSourceNAT,
-		Family:     unix.NFPROTO_IPV4,
+		Family:     uint32(nftables.TableFamilyIPv4),
 		RegAddrMin: addrMin,
 		RegAddrMax: addrMax,
 	}
