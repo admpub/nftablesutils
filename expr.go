@@ -118,7 +118,7 @@ func ExprCmpNeq(reg uint32, data []byte) *expr.Cmp {
 func ExprLookupSet(reg uint32, name string, id uint32) *expr.Lookup {
 	// [ lookup reg 1 set adminipset ]
 	return &expr.Lookup{
-		SourceRegister: 1,
+		SourceRegister: defaultRegister,
 		SetName:        name,
 		SetID:          id,
 	}
@@ -138,7 +138,7 @@ func ExprCtState(reg uint32) *expr.Ct {
 func ExprImmediate(ip net.IP) *expr.Immediate {
 	// [ immediate reg 1 0x0158a8c0 ]
 	return &expr.Immediate{
-		Register: 1,
+		Register: defaultRegister,
 		Data:     ip,
 	}
 }
@@ -210,6 +210,7 @@ func ExprLimits(rateStr string, burst uint32) *expr.Limit {
 	parts := strings.SplitN(rateStr, `/`, 3)
 	switch len(parts) {
 	case 3:
+		parts[2] = strings.TrimSpace(parts[2])
 		if len(parts[2]) > 0 {
 			switch parts[2][0] {
 			case 's':
@@ -226,6 +227,7 @@ func ExprLimits(rateStr string, burst uint32) *expr.Limit {
 		}
 		fallthrough
 	case 2:
+		parts[1] = strings.TrimSpace(parts[1])
 		if len(parts[1]) > 0 {
 			switch parts[1][0] {
 			case 'p':
@@ -236,6 +238,7 @@ func ExprLimits(rateStr string, burst uint32) *expr.Limit {
 		}
 		fallthrough
 	case 1:
+		parts[0] = strings.TrimSpace(parts[0])
 		e.Over = strings.HasSuffix(parts[0], `+`)
 		if e.Over {
 			parts[0] = strings.TrimSuffix(parts[0], `+`)

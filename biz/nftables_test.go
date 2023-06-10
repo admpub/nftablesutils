@@ -2,6 +2,8 @@ package biz
 
 import (
 	"fmt"
+	"log"
+	"net/http"
 	"testing"
 
 	utils "github.com/admpub/nftablesutils"
@@ -9,6 +11,14 @@ import (
 	"github.com/google/nftables"
 	"github.com/stretchr/testify/assert"
 )
+
+func testServer() {
+	err := http.ListenAndServe(`:14444`, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`hello world.`))
+	}))
+	log.Fatal(err)
+}
 
 func TestNFTables(t *testing.T) {
 	wanIface, _, _, err := utils.IPAddr()
@@ -18,7 +28,7 @@ func TestNFTables(t *testing.T) {
 		Enabled:          true,
 		NetworkNamespace: ``,
 		DefaultPolicy:    `accept`,
-		MyIface:          ``,
+		MyIface:          `docker0`,
 		MyPort:           0,
 		Ifaces:           []string{},
 		TrustPorts:       []uint16{22},
@@ -33,6 +43,16 @@ func TestNFTables(t *testing.T) {
 			utils.SetDPort(3306),
 		).Add(utils.Accept())
 		_, err := target.Add(conn, rule.NewData([]byte(`001`), exp))
+		if err != nil {
+			return err
+		}
+		exp = utils.JoinExprs(
+			utils.SetIIF(`docker0`),
+			utils.SetProtoTCP(),
+			utils.SetSPort(14444),
+			//[]expr.Any{utils.SourcePort(14444)},
+		).Add(utils.Drop())
+		_, err = target.Add(conn, rule.NewData([]byte(`002`), exp))
 		if err != nil {
 			return err
 		}
@@ -55,6 +75,7 @@ func TestNFTables(t *testing.T) {
 		return err
 	})
 
-	defer c.Cleanup()
+	testServer()
+	c.Cleanup()
 	_ = cfg
 }

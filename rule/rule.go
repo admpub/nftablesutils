@@ -55,7 +55,7 @@ func (r *RuleTarget) Delete(c *nftables.Conn, ruleData RuleData) (bool, error) {
 
 	rule := findRuleByID(ruleData.ID, rules)
 
-	if rule.Table.Name == "" {
+	if rule.Table == nil {
 		// if the rule we get back is empty (the final return in findRuleByID) we didn't find it
 		return false, nil
 	}

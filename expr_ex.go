@@ -51,12 +51,12 @@ const (
 
 // Returns a source port payload expression
 func SourcePort(reg uint32) *expr.Payload {
-	return ExprPayloadNetHeader(reg, SrcPortOffset, PortLen)
+	return ExprPayloadTransportHeader(reg, SrcPortOffset, PortLen)
 }
 
 // Returns a destination port payload expression
 func DestinationPort(reg uint32) *expr.Payload {
-	return ExprPayloadNetHeader(reg, DstPortOffset, PortLen)
+	return ExprPayloadTransportHeader(reg, DstPortOffset, PortLen)
 }
 
 // Returns a IPv4 source address payload expression

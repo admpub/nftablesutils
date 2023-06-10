@@ -261,10 +261,10 @@ func (nft *NFTables) apply() error {
 		return err
 	}
 
-	// add wgmanager_ipset
-	// cmd: nft add set ip filter wgmanager_ipset { type ipv4_addr\; }
+	// add mymanager_ipset
+	// cmd: nft add set ip filter mymanager_ipset { type ipv4_addr\; }
 	// --
-	// set wgmanager_ipset {
+	// set mymanager_ipset {
 	//         type ipv4_addr
 	// }
 	err = c.AddSet(nft.filterSetMyManagerIP, nil)
@@ -272,10 +272,10 @@ func (nft *NFTables) apply() error {
 		return err
 	}
 
-	// add wgforward_ipset
-	// cmd: nft add set ip filter wgforward_ipset { type ipv4_addr\; }
+	// add myforward_ipset
+	// cmd: nft add set ip filter myforward_ipset { type ipv4_addr\; }
 	// --
-	// set wgforward_ipset {
+	// set myforward_ipset {
 	//         type ipv4_addr
 	// }
 	err = c.AddSet(nft.filterSetMyForwardIP, nil)
@@ -564,6 +564,9 @@ func (nft *NFTables) outputTrustIPSetRules(c *nftables.Conn, iface string) error
 
 // inputPublicRules to apply.
 func (nft *NFTables) inputPublicRules(c *nftables.Conn, iface string) error {
+	if nft.myPort <= 0 {
+		return nil
+	}
 	// cmd: nft add rule ip filter input meta iifname "eth0" \
 	// ip protocol udp udp dport 51820 accept
 	// --
@@ -586,6 +589,9 @@ func (nft *NFTables) inputPublicRules(c *nftables.Conn, iface string) error {
 
 // outputPublicRules to apply.
 func (nft *NFTables) outputPublicRules(c *nftables.Conn, iface string) error {
+	if nft.myPort <= 0 {
+		return nil
+	}
 	// cmd: nft add rule ip filter output meta oifname "eth0" \
 	// ip protocol udp udp sport 51820 accept
 	// --
@@ -667,8 +673,7 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	portSet := utils.GetPortSet(nft.tFilter)
 	portSetElems := make([]nftables.SetElement, len(nft.managerPorts))
 	for i, p := range nft.managerPorts {
-		portSetElems[i] = nftables.SetElement{
-			Key: binaryutil.BigEndian.PutUint16(p)}
+		portSetElems[i] = nftables.SetElement{Key: binaryutil.BigEndian.PutUint16(p)}
 	}
 	err = c.AddSet(portSet, portSetElems)
 	if err != nil {
@@ -721,8 +726,7 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	portSet = utils.GetPortSet(nft.tFilter)
 	portSetElems = make([]nftables.SetElement, len(nft.managerPorts))
 	for i, p := range nft.managerPorts {
-		portSetElems[i] = nftables.SetElement{
-			Key: binaryutil.BigEndian.PutUint16(p)}
+		portSetElems[i] = nftables.SetElement{Key: binaryutil.BigEndian.PutUint16(p)}
 	}
 	err = c.AddSet(portSet, portSetElems)
 	if err != nil {
@@ -763,6 +767,9 @@ func (nft *NFTables) sdnForwardRules(c *nftables.Conn) error {
 	}
 	c.AddRule(rule)
 
+	if len(nft.myIface) == 0 {
+		return nil
+	}
 	// cmd: nft add rule ip filter forward \
 	// meta iifname "wg0" \
 	// ip saddr @wgforward_ipset \
