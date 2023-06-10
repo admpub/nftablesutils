@@ -49,11 +49,11 @@ func SetNOIF(iface string) []expr.Any {
 // SetSourceNet helper.
 func SetSourceNet(addr []byte, mask []byte) []expr.Any {
 	exprs := []expr.Any{
-		ExprPayloadNetHeader(1, 12, 4),
-		ExprBitwise(1, 1, 4,
+		IPv4SourceAddress(defaultRegister),
+		ExprBitwise(defaultRegister, defaultRegister, 4,
 			mask,
 			[]byte{0, 0, 0, 0}),
-		ExprCmpEq(1, addr),
+		ExprCmpEq(defaultRegister, addr),
 	}
 
 	return exprs
@@ -63,7 +63,7 @@ func SetSourceNet(addr []byte, mask []byte) []expr.Any {
 func SetProtoICMP() []expr.Any {
 	exprs := []expr.Any{
 		ExprPayloadNetHeader(1, 9, 1),
-		ExprCmpEq(1, ProtoICMP()),
+		ExprCmpEq(defaultRegister, TypeProtoICMP()),
 	}
 
 	return exprs
@@ -72,8 +72,8 @@ func SetProtoICMP() []expr.Any {
 // SetICMPTypeEchoRequest helper.
 func SetICMPTypeEchoRequest() []expr.Any {
 	exprs := []expr.Any{
-		ExprPayloadTransportHeader(1, 0, 1),
-		ExprCmpEq(1, ICMPTypeEchoRequest()),
+		ExprPayloadTransportHeader(defaultRegister, 0, 1),
+		ExprCmpEq(defaultRegister, TypeICMPTypeEchoRequest()),
 	}
 
 	return exprs
@@ -82,8 +82,8 @@ func SetICMPTypeEchoRequest() []expr.Any {
 // SetProtoUDP helper.
 func SetProtoUDP() []expr.Any {
 	exprs := []expr.Any{
-		ExprPayloadNetHeader(1, 9, 1),
-		ExprCmpEq(1, ProtoUDP()),
+		ProtoUDP(defaultRegister),
+		ExprCmpEq(defaultRegister, TypeProtoUDP()),
 	}
 
 	return exprs
@@ -92,8 +92,8 @@ func SetProtoUDP() []expr.Any {
 // SetProtoTCP helper.
 func SetProtoTCP() []expr.Any {
 	exprs := []expr.Any{
-		ExprPayloadNetHeader(1, 9, 1),
-		ExprCmpEq(1, ProtoTCP()),
+		ProtoTCP(defaultRegister),
+		ExprCmpEq(defaultRegister, TypeProtoTCP()),
 	}
 
 	return exprs
@@ -102,8 +102,8 @@ func SetProtoTCP() []expr.Any {
 // SetSAddrSet helper.
 func SetSAddrSet(s *nftables.Set) []expr.Any {
 	exprs := []expr.Any{
-		ExprPayloadNetHeader(1, 12, 4),
-		ExprLookupSet(1, s.Name, s.ID),
+		IPv4SourceAddress(defaultRegister),
+		ExprLookupSet(defaultRegister, s.Name, s.ID),
 	}
 
 	return exprs
@@ -112,8 +112,8 @@ func SetSAddrSet(s *nftables.Set) []expr.Any {
 // SetDAddrSet helper.
 func SetDAddrSet(s *nftables.Set) []expr.Any {
 	exprs := []expr.Any{
-		ExprPayloadNetHeader(1, 16, 4),
-		ExprLookupSet(1, s.Name, s.ID),
+		IPv4DestinationAddress(defaultRegister),
+		ExprLookupSet(defaultRegister, s.Name, s.ID),
 	}
 
 	return exprs
@@ -133,8 +133,8 @@ func GetAddrSet(t *nftables.Table) *nftables.Set {
 // SetSPort helper.
 func SetSPort(p uint16) []expr.Any {
 	exprs := []expr.Any{
-		ExprPayloadTransportHeader(1, 0, 2),
-		ExprCmpEq(1, binaryutil.BigEndian.PutUint16(p)),
+		SourcePort(defaultRegister),
+		ExprCmpEq(defaultRegister, binaryutil.BigEndian.PutUint16(p)),
 	}
 
 	return exprs
@@ -143,8 +143,8 @@ func SetSPort(p uint16) []expr.Any {
 // SetDPort helper.
 func SetDPort(p uint16) []expr.Any {
 	exprs := []expr.Any{
-		ExprPayloadTransportHeader(1, 2, 2),
-		ExprCmpEq(1, binaryutil.BigEndian.PutUint16(p)),
+		DestinationPort(defaultRegister),
+		ExprCmpEq(defaultRegister, binaryutil.BigEndian.PutUint16(p)),
 	}
 
 	return exprs
@@ -153,8 +153,8 @@ func SetDPort(p uint16) []expr.Any {
 // SetSPortSet helper.
 func SetSPortSet(s *nftables.Set) []expr.Any {
 	exprs := []expr.Any{
-		ExprPayloadTransportHeader(1, 0, 2),
-		ExprLookupSet(1, s.Name, s.ID),
+		SourcePort(defaultRegister),
+		ExprLookupSet(defaultRegister, s.Name, s.ID),
 	}
 
 	return exprs
@@ -163,8 +163,8 @@ func SetSPortSet(s *nftables.Set) []expr.Any {
 // SetDPortSet helper.
 func SetDPortSet(s *nftables.Set) []expr.Any {
 	exprs := []expr.Any{
-		ExprPayloadTransportHeader(1, 2, 2),
-		ExprLookupSet(1, s.Name, s.ID),
+		DestinationPort(defaultRegister),
+		ExprLookupSet(defaultRegister, s.Name, s.ID),
 	}
 
 	return exprs
@@ -195,8 +195,8 @@ func GetPortElems(ports []uint16) []nftables.SetElement {
 // SetConntrackStateSet helper.
 func SetConntrackStateSet(s *nftables.Set) []expr.Any {
 	exprs := []expr.Any{
-		ExprCtLoadState(1),
-		ExprLookupSet(1, s.Name, s.ID),
+		ExprCtLoadState(defaultRegister),
+		ExprLookupSet(defaultRegister, s.Name, s.ID),
 	}
 
 	return exprs
@@ -205,11 +205,11 @@ func SetConntrackStateSet(s *nftables.Set) []expr.Any {
 // SetConntrackStateNew helper.
 func SetConntrackStateNew() []expr.Any {
 	exprs := []expr.Any{
-		ExprCtLoadState(1),
-		ExprBitwise(1, 1, 4,
-			ConntrackStateNew(),
+		ExprCtLoadState(defaultRegister),
+		ExprBitwise(defaultRegister, defaultRegister, ConnTrackStateLen,
+			TypeConntrackStateNew(),
 			[]byte{0x00, 0x00, 0x00, 0x00}),
-		ExprCmpNeq(1, []byte{0x00, 0x00, 0x00, 0x00}),
+		ExprCmpNeq(defaultRegister, []byte{0x00, 0x00, 0x00, 0x00}),
 	}
 
 	return exprs
@@ -218,11 +218,11 @@ func SetConntrackStateNew() []expr.Any {
 // SetConntrackStateEstablished helper.
 func SetConntrackStateEstablished() []expr.Any {
 	exprs := []expr.Any{
-		ExprCtLoadState(1),
-		ExprBitwise(1, 1, 4,
-			ConntrackStateEstablished(),
+		ExprCtLoadState(defaultRegister),
+		ExprBitwise(defaultRegister, defaultRegister, ConnTrackStateLen,
+			TypeConntrackStateEstablished(),
 			[]byte{0x00, 0x00, 0x00, 0x00}),
-		ExprCmpNeq(1, []byte{0x00, 0x00, 0x00, 0x00}),
+		ExprCmpNeq(defaultRegister, []byte{0x00, 0x00, 0x00, 0x00}),
 	}
 
 	return exprs
@@ -231,11 +231,11 @@ func SetConntrackStateEstablished() []expr.Any {
 // SetConntrackStateRelated helper.
 func SetConntrackStateRelated() []expr.Any {
 	exprs := []expr.Any{
-		ExprCtLoadState(1),
-		ExprBitwise(1, 1, 4,
-			ConntrackStateRelated(),
+		ExprCtLoadState(defaultRegister),
+		ExprBitwise(defaultRegister, defaultRegister, ConnTrackStateLen,
+			TypeConntrackStateRelated(),
 			[]byte{0x00, 0x00, 0x00, 0x00}),
-		ExprCmpNeq(1, []byte{0x00, 0x00, 0x00, 0x00}),
+		ExprCmpNeq(defaultRegister, []byte{0x00, 0x00, 0x00, 0x00}),
 	}
 
 	return exprs
@@ -247,7 +247,7 @@ func GetConntrackStateSet(t *nftables.Table) *nftables.Set {
 		Anonymous: true,
 		Constant:  true,
 		Table:     t,
-		KeyType:   ConntrackStateDatatype()}
+		KeyType:   TypeConntrackStateDatatype()}
 
 	return s
 }
@@ -259,13 +259,13 @@ func GetConntrackStateSetElems(states []string) []nftables.SetElement {
 		switch s {
 		case "new":
 			elems = append(elems,
-				nftables.SetElement{Key: ConntrackStateNew()})
+				nftables.SetElement{Key: TypeConntrackStateNew()})
 		case "established":
 			elems = append(elems,
-				nftables.SetElement{Key: ConntrackStateEstablished()})
+				nftables.SetElement{Key: TypeConntrackStateEstablished()})
 		case "related":
 			elems = append(elems,
-				nftables.SetElement{Key: ConntrackStateRelated()})
+				nftables.SetElement{Key: TypeConntrackStateRelated()})
 		}
 	}
 

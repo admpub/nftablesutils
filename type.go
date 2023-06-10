@@ -2,43 +2,43 @@ package nftablesutils
 
 import "github.com/google/nftables"
 
-// ProtoICMP bytes.
-func ProtoICMP() []byte {
+// TypeProtoICMP bytes.
+func TypeProtoICMP() []byte {
 	return []byte{0x01}
 }
 
-// ICMPTypeEchoRequest bytes.
-func ICMPTypeEchoRequest() []byte {
+// TypeICMPTypeEchoRequest bytes.
+func TypeICMPTypeEchoRequest() []byte {
 	return []byte{0x08}
 }
 
-// ProtoUDP bytes.
-func ProtoUDP() []byte {
+// TypeProtoUDP bytes.
+func TypeProtoUDP() []byte {
 	return []byte{0x11}
 }
 
-// ProtoTCP bytes.
-func ProtoTCP() []byte {
+// TypeProtoTCP bytes.
+func TypeProtoTCP() []byte {
 	return []byte{0x06}
 }
 
-// ConntrackStateNew bytes.
-func ConntrackStateNew() []byte {
+// TypeConntrackStateNew bytes.
+func TypeConntrackStateNew() []byte {
 	return []byte{0x08, 0x00, 0x00, 0x00}
 }
 
-// ConntrackStateEstablished bytes.
-func ConntrackStateEstablished() []byte {
+// TypeConntrackStateEstablished bytes.
+func TypeConntrackStateEstablished() []byte {
 	return []byte{0x02, 0x00, 0x00, 0x00}
 }
 
-// ConntrackStateRelated bytes.
-func ConntrackStateRelated() []byte {
+// TypeConntrackStateRelated bytes.
+func TypeConntrackStateRelated() []byte {
 	return []byte{0x04, 0x00, 0x00, 0x00}
 }
 
 // ConntrackStateDatatype object.
-func ConntrackStateDatatype() nftables.SetDatatype {
+func TypeConntrackStateDatatype() nftables.SetDatatype {
 	ctStateDataType := nftables.SetDatatype{Name: "ct_state", Bytes: 4}
 	// nftMagic: https://git.netfilter.org/nftables/tree/src/datatype.c#n32 (arr index)
 	ctStateDataType.SetNFTMagic(26)

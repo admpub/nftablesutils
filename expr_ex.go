@@ -29,6 +29,20 @@ const (
 	IPv6AddrLen   = 16
 )
 
+const (
+	ConnTrackStateLen = 4
+)
+
+const (
+	ProtoTCPOffset = 9
+	ProtoTCPLen    = 1
+)
+
+const (
+	ProtoUDPOffset = 9
+	ProtoUDPLen    = 1
+)
+
 // Default register and default xt_bpf version
 const (
 	defaultRegister = 1
@@ -63,6 +77,14 @@ func IPv4DestinationAddress(reg uint32) *expr.Payload {
 // Returns a IPv6 destination address payload expression
 func IPv6DestinationAddress(reg uint32) *expr.Payload {
 	return ExprPayloadNetHeader(reg, IPv6DstOffset, IPv6AddrLen)
+}
+
+func ProtoTCP(reg uint32) *expr.Payload {
+	return ExprPayloadNetHeader(reg, ProtoTCPOffset, ProtoTCPLen)
+}
+
+func ProtoUDP(reg uint32) *expr.Payload {
+	return ExprPayloadNetHeader(reg, ProtoUDPOffset, ProtoUDPLen)
 }
 
 // Returns a port set lookup expression
