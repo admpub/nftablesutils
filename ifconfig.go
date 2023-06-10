@@ -20,25 +20,28 @@ func IPAddr() (string, net.IP, net.IP, error) {
 	const file = "/proc/net/route"
 	f, err := os.Open(file)
 	if err != nil {
-		return "", nil, nil, fmt.Errorf("can't access %s", file)
+		return ``, nil, nil, fmt.Errorf("can't access %s: %w", file, err)
 	}
 	defer f.Close()
 
 	bytes, err := ioutil.ReadAll(f)
 	if err != nil {
-		return "", nil, nil, fmt.Errorf("can't read %s", file)
+		return ``, nil, nil, fmt.Errorf("can't read %s: %w", file, err)
 	}
 
 	wanIface, gatewayIP, err := parseLinuxProcNetRoute(bytes)
+	if err != nil {
+		return ``, nil, nil, err
+	}
 
 	iface, err := net.InterfaceByName(wanIface)
 	if err != nil {
-		return "", nil, nil, errors.New("can't get interface by name")
+		return ``, nil, nil, fmt.Errorf("can't get interface by name: %w", err)
 	}
 
 	addrs, err := iface.Addrs()
 	if err != nil {
-		return "", nil, nil, fmt.Errorf("can't get iface addrs: %v", err)
+		return ``, nil, nil, fmt.Errorf("can't get iface addrs: %w", err)
 	}
 
 	wanIP := net.IP{}
@@ -71,7 +74,7 @@ func parseLinuxProcNetRoute(f []byte) (string, net.IP, error) {
 		field = 2    // field containing hex gateway address
 	)
 	scanner := bufio.NewScanner(bytes.NewReader(f))
-	for scanner.Scan() {
+	if scanner.Scan() {
 		// Skip header line
 		if !scanner.Scan() {
 			return "", nil, errors.New("invalid linux route file")

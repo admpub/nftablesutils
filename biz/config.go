@@ -1,4 +1,4 @@
-package nftablesutils
+package biz
 
 import (
 	"github.com/google/nftables"

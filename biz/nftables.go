@@ -1,4 +1,4 @@
-package nftablesutils
+package biz
 
 import (
 	"net"
@@ -6,14 +6,16 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	utils "github.com/admpub/nftablesutils"
 	"github.com/google/nftables"
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
-
 	"github.com/vishvananda/netns"
 )
 
 const loIface = "lo"
+
+var _ INFTables = &NFTables{}
 
 // NFTables struct.
 type NFTables struct {
@@ -50,7 +52,7 @@ func Init(
 	managerPorts []uint16,
 ) (*NFTables, error) {
 	// obtain default interface name, ip address and gateway ip address
-	wanIface, _, wanIP, err := IPAddr()
+	wanIface, _, wanIP, err := utils.IPAddr()
 	if err != nil {
 		return nil, err
 	}
@@ -350,8 +352,8 @@ func (nft *NFTables) inputLocalIfaceRules(c *nftables.Conn) {
 	// --
 	// iifname "lo" accept
 	exprs := make([]expr.Any, 0, 3)
-	exprs = append(exprs, SetIIF(loIface)...)
-	exprs = append(exprs, ExprAccept())
+	exprs = append(exprs, utils.SetIIF(loIface)...)
+	exprs = append(exprs, utils.ExprAccept())
 	rule := &nftables.Rule{
 		Table: nft.tFilter,
 		Chain: nft.cInput,
@@ -364,10 +366,10 @@ func (nft *NFTables) inputLocalIfaceRules(c *nftables.Conn) {
 	// --
 	// iifname != "lo" ip saddr 127.0.0.0/8 reject with icmp type prot-unreachable
 	exprs = make([]expr.Any, 0, 6)
-	exprs = append(exprs, SetNIIF(loIface)...)
+	exprs = append(exprs, utils.SetNIIF(loIface)...)
 	exprs = append(exprs,
-		SetSourceNet([]byte{127, 0, 0, 0}, []byte{255, 255, 255, 0})...)
-	exprs = append(exprs, ExprReject(
+		utils.SetSourceNet([]byte{127, 0, 0, 0}, []byte{255, 255, 255, 0})...)
+	exprs = append(exprs, utils.ExprReject(
 		unix.NFT_REJECT_ICMP_UNREACH,
 		unix.NFT_REJECT_ICMPX_UNREACH,
 	))
@@ -385,8 +387,8 @@ func (nft *NFTables) outputLocalIfaceRules(c *nftables.Conn) {
 	// --
 	// oifname "lo" accept
 	exprs := make([]expr.Any, 0, 3)
-	exprs = append(exprs, SetOIF(loIface)...)
-	exprs = append(exprs, ExprAccept())
+	exprs = append(exprs, utils.SetOIF(loIface)...)
+	exprs = append(exprs, utils.ExprAccept())
 	rule := &nftables.Rule{
 		Table: nft.tFilter,
 		Chain: nft.cOutput,
@@ -401,8 +403,8 @@ func (nft *NFTables) inputHostBaseRules(c *nftables.Conn, iface string) error {
 	// ct state { established, related } accept
 	// --
 	// iifname "eth0" ip protocol icmp ct state { established, related } accept
-	ctStateSet := GetConntrackStateSet(nft.tFilter)
-	elems := GetConntrackStateSetElems(
+	ctStateSet := utils.GetConntrackStateSet(nft.tFilter)
+	elems := utils.GetConntrackStateSetElems(
 		[]string{"established", "related"})
 	err := c.AddSet(ctStateSet, elems)
 	if err != nil {
@@ -410,10 +412,10 @@ func (nft *NFTables) inputHostBaseRules(c *nftables.Conn, iface string) error {
 	}
 
 	exprs := make([]expr.Any, 0, 7)
-	exprs = append(exprs, SetIIF(iface)...)
-	exprs = append(exprs, SetProtoICMP()...)
-	exprs = append(exprs, SetConntrackStateSet(ctStateSet)...)
-	exprs = append(exprs, ExprAccept())
+	exprs = append(exprs, utils.SetIIF(iface)...)
+	exprs = append(exprs, utils.SetProtoICMP()...)
+	exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
+	exprs = append(exprs, utils.ExprAccept())
 
 	rule := &nftables.Rule{
 		Table: nft.tFilter,
@@ -422,71 +424,14 @@ func (nft *NFTables) inputHostBaseRules(c *nftables.Conn, iface string) error {
 	}
 	c.AddRule(rule)
 
-	// cmd: nft add rule ip filter input meta iifname "eth0" \
-	// ip protocol udp udp sport 53 \
-	// ct state established accept
-	// --
-	// iifname "eth0" udp sport domain ct state established accept
-	exprs = make([]expr.Any, 0, 10)
-	exprs = append(exprs, SetIIF(iface)...)
-	exprs = append(exprs, SetProtoUDP()...)
-	exprs = append(exprs, SetSPort(53)...)
-	exprs = append(exprs, SetConntrackStateEstablished()...)
-	exprs = append(exprs, ExprAccept())
-
-	rule = &nftables.Rule{
-		Table: nft.tFilter,
-		Chain: nft.cInput,
-		Exprs: exprs,
-	}
-	c.AddRule(rule)
-
-	// cmd: nft add rule ip filter input meta iifname "eth0" \
-	// ip protocol tcp tcp sport 53 \
-	// ct state established accept
-	// --
-	// iifname "eth0" tcp sport domain ct state established accept
-	exprs = make([]expr.Any, 0, 10)
-	exprs = append(exprs, SetIIF(iface)...)
-	exprs = append(exprs, SetProtoTCP()...)
-	exprs = append(exprs, SetSPort(53)...)
-	exprs = append(exprs, SetConntrackStateEstablished()...)
-	exprs = append(exprs, ExprAccept())
-
-	rule = &nftables.Rule{
-		Table: nft.tFilter,
-		Chain: nft.cInput,
-		Exprs: exprs,
-	}
-	c.AddRule(rule)
-
-	// cmd: nft add rule ip filter input meta iifname "eth0" \
-	// ip protocol tcp tcp sport { 80, 443 } \
-	// ct state established accept
-	// --
-	// iifname "eth0" tcp sport { http, https } ct state established accept
-	portSet := GetPortSet(nft.tFilter)
-	// portSet := &nftables.Set{Anonymous: true, Constant: true,
-	// 	Table: nft.tFilter, KeyType: nftables.TypeInetService}
-	elems = GetPortElems([]uint16{80, 443})
-	err = c.AddSet(portSet, elems)
-	if err != nil {
+	// DNS
+	if err = nft.inputDNSRules(c, iface); err != nil {
 		return err
 	}
-
-	exprs = make([]expr.Any, 0, 10)
-	exprs = append(exprs, SetIIF(iface)...)
-	exprs = append(exprs, SetProtoTCP()...)
-	exprs = append(exprs, SetSPortSet(portSet)...)
-	exprs = append(exprs, SetConntrackStateEstablished()...)
-	exprs = append(exprs, ExprAccept())
-
-	rule = &nftables.Rule{
-		Table: nft.tFilter,
-		Chain: nft.cInput,
-		Exprs: exprs,
+	// HTTP Server
+	if err = nft.inputHTTPServerRules(c, iface); err != nil {
+		return err
 	}
-	c.AddRule(rule)
 
 	return nil
 }
@@ -497,8 +442,8 @@ func (nft *NFTables) outputHostBaseRules(c *nftables.Conn, iface string) error {
 	// ct state { new, established } accept
 	// --
 	// oifname "eth0" ip protocol icmp ct state { established, new } accept
-	ctStateSet := GetConntrackStateSet(nft.tFilter)
-	elems := GetConntrackStateSetElems(
+	ctStateSet := utils.GetConntrackStateSet(nft.tFilter)
+	elems := utils.GetConntrackStateSetElems(
 		[]string{"new", "established"})
 	err := c.AddSet(ctStateSet, elems)
 	if err != nil {
@@ -506,10 +451,10 @@ func (nft *NFTables) outputHostBaseRules(c *nftables.Conn, iface string) error {
 	}
 
 	exprs := make([]expr.Any, 0, 7)
-	exprs = append(exprs, SetOIF(iface)...)
-	exprs = append(exprs, SetProtoICMP()...)
-	exprs = append(exprs, SetConntrackStateSet(ctStateSet)...)
-	exprs = append(exprs, ExprAccept())
+	exprs = append(exprs, utils.SetOIF(iface)...)
+	exprs = append(exprs, utils.SetProtoICMP()...)
+	exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
+	exprs = append(exprs, utils.ExprAccept())
 
 	rule := &nftables.Rule{
 		Table: nft.tFilter,
@@ -518,91 +463,14 @@ func (nft *NFTables) outputHostBaseRules(c *nftables.Conn, iface string) error {
 	}
 	c.AddRule(rule)
 
-	// cmd: nft add rule ip filter output meta oifname "eth0" \
-	// ip protocol udp udp dport 53 \
-	// ct state { new, established } accept
-	// --
-	// oifname "eth0" udp dport domain ct state { established, new } accept
-	ctStateSet = GetConntrackStateSet(nft.tFilter)
-	elems = GetConntrackStateSetElems(
-		[]string{"new", "established"})
-	err = c.AddSet(ctStateSet, elems)
-	if err != nil {
+	// DNS
+	if err = nft.outputDNSRules(c, iface); err != nil {
 		return err
 	}
-	exprs = make([]expr.Any, 0, 10)
-	exprs = append(exprs, SetOIF(iface)...)
-	exprs = append(exprs, SetProtoUDP()...)
-	exprs = append(exprs, SetDPort(53)...)
-	exprs = append(exprs, SetConntrackStateSet(ctStateSet)...)
-	exprs = append(exprs, ExprAccept())
-
-	rule = &nftables.Rule{
-		Table: nft.tFilter,
-		Chain: nft.cOutput,
-		Exprs: exprs,
-	}
-	c.AddRule(rule)
-
-	// cmd: nft add rule ip filter output meta oifname "eth0" \
-	// ip protocol tcp tcp dport 53 \
-	// ct state { new, established } accept
-	// --
-	// oifname "eth0" tcp dport domain ct state { established, new } accept
-	ctStateSet = GetConntrackStateSet(nft.tFilter)
-	elems = GetConntrackStateSetElems(
-		[]string{"new", "established"})
-	err = c.AddSet(ctStateSet, elems)
-	if err != nil {
+	// HTTP Server
+	if err = nft.outputHTTPServerRules(c, iface); err != nil {
 		return err
 	}
-	exprs = make([]expr.Any, 0, 10)
-	exprs = append(exprs, SetOIF(iface)...)
-	exprs = append(exprs, SetProtoTCP()...)
-	exprs = append(exprs, SetDPort(53)...)
-	exprs = append(exprs, SetConntrackStateSet(ctStateSet)...)
-	exprs = append(exprs, ExprAccept())
-
-	rule = &nftables.Rule{
-		Table: nft.tFilter,
-		Chain: nft.cOutput,
-		Exprs: exprs,
-	}
-	c.AddRule(rule)
-
-	// cmd: nft add rule ip filter output meta oifname "eth0" \
-	// ip protocol tcp tcp dport { 80, 443 } \
-	// ct state { new, established } accept
-	// --
-	// oifname "eth0" tcp dport { http, https } ct state { established, new } accept
-	portSet := GetPortSet(nft.tFilter)
-	elems = GetPortElems([]uint16{80, 443})
-	err = c.AddSet(portSet, elems)
-	if err != nil {
-		return err
-	}
-
-	ctStateSet = GetConntrackStateSet(nft.tFilter)
-	elems = GetConntrackStateSetElems(
-		[]string{"new", "established"})
-	err = c.AddSet(ctStateSet, elems)
-	if err != nil {
-		return err
-	}
-
-	exprs = make([]expr.Any, 0, 10)
-	exprs = append(exprs, SetOIF(iface)...)
-	exprs = append(exprs, SetProtoTCP()...)
-	exprs = append(exprs, SetDPortSet(portSet)...)
-	exprs = append(exprs, SetConntrackStateSet(ctStateSet)...)
-	exprs = append(exprs, ExprAccept())
-
-	rule = &nftables.Rule{
-		Table: nft.tFilter,
-		Chain: nft.cOutput,
-		Exprs: exprs,
-	}
-	c.AddRule(rule)
 
 	return nil
 }
@@ -614,12 +482,12 @@ func (nft *NFTables) inputTrustIPSetRules(c *nftables.Conn, iface string) error 
 	// --
 	// iifname "eth0" icmp type echo-request ip saddr @trust_ipset ct state new accept
 	exprs := make([]expr.Any, 0, 12)
-	exprs = append(exprs, SetIIF(iface)...)
-	exprs = append(exprs, SetProtoICMP()...)
-	exprs = append(exprs, SetICMPTypeEchoRequest()...)
-	exprs = append(exprs, SetSAddrSet(nft.filterSetTrustIP)...)
-	exprs = append(exprs, SetConntrackStateNew()...)
-	exprs = append(exprs, ExprAccept())
+	exprs = append(exprs, utils.SetIIF(iface)...)
+	exprs = append(exprs, utils.SetProtoICMP()...)
+	exprs = append(exprs, utils.SetICMPTypeEchoRequest()...)
+	exprs = append(exprs, utils.SetSAddrSet(nft.filterSetTrustIP)...)
+	exprs = append(exprs, utils.SetConntrackStateNew()...)
+	exprs = append(exprs, utils.ExprAccept())
 	rule := &nftables.Rule{
 		Table: nft.tFilter,
 		Chain: nft.cInput,
@@ -632,27 +500,27 @@ func (nft *NFTables) inputTrustIPSetRules(c *nftables.Conn, iface string) error 
 	// ct state { new, established } accept
 	// --
 	// iifname "eth0" tcp dport { 5522 } ip saddr @trust_ipset ct state { established, new } accept
-	ctStateSet := GetConntrackStateSet(nft.tFilter)
-	elems := GetConntrackStateSetElems(
+	ctStateSet := utils.GetConntrackStateSet(nft.tFilter)
+	elems := utils.GetConntrackStateSetElems(
 		[]string{"new", "established"})
 	err := c.AddSet(ctStateSet, elems)
 	if err != nil {
 		return err
 	}
 
-	portSet := GetPortSet(nft.tFilter)
+	portSet := utils.GetPortSet(nft.tFilter)
 	err = c.AddSet(portSet, nft.cfg.trustPorts())
 	if err != nil {
 		return err
 	}
 
 	exprs = make([]expr.Any, 0, 11)
-	exprs = append(exprs, SetIIF(iface)...)
-	exprs = append(exprs, SetProtoTCP()...)
-	exprs = append(exprs, SetDPortSet(portSet)...)
-	exprs = append(exprs, SetSAddrSet(nft.filterSetTrustIP)...)
-	exprs = append(exprs, SetConntrackStateSet(ctStateSet)...)
-	exprs = append(exprs, ExprAccept())
+	exprs = append(exprs, utils.SetIIF(iface)...)
+	exprs = append(exprs, utils.SetProtoTCP()...)
+	exprs = append(exprs, utils.SetDPortSet(portSet)...)
+	exprs = append(exprs, utils.SetSAddrSet(nft.filterSetTrustIP)...)
+	exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
+	exprs = append(exprs, utils.ExprAccept())
 	rule = &nftables.Rule{
 		Table: nft.tFilter,
 		Chain: nft.cInput,
@@ -670,19 +538,19 @@ func (nft *NFTables) outputTrustIPSetRules(c *nftables.Conn, iface string) error
 	// ct state established accept
 	// --
 	// oifname "eth0" tcp sport { 5522 } ip daddr @trust_ipset ct state established accept
-	portSet := GetPortSet(nft.tFilter)
+	portSet := utils.GetPortSet(nft.tFilter)
 	err := c.AddSet(portSet, nft.cfg.trustPorts())
 	if err != nil {
 		return err
 	}
 
 	exprs := make([]expr.Any, 0, 12)
-	exprs = append(exprs, SetOIF(iface)...)
-	exprs = append(exprs, SetProtoTCP()...)
-	exprs = append(exprs, SetSPortSet(portSet)...)
-	exprs = append(exprs, SetDAddrSet(nft.filterSetTrustIP)...)
-	exprs = append(exprs, SetConntrackStateEstablished()...)
-	exprs = append(exprs, ExprAccept())
+	exprs = append(exprs, utils.SetOIF(iface)...)
+	exprs = append(exprs, utils.SetProtoTCP()...)
+	exprs = append(exprs, utils.SetSPortSet(portSet)...)
+	exprs = append(exprs, utils.SetDAddrSet(nft.filterSetTrustIP)...)
+	exprs = append(exprs, utils.SetConntrackStateEstablished()...)
+	exprs = append(exprs, utils.ExprAccept())
 	rule := &nftables.Rule{
 		Table: nft.tFilter,
 		Chain: nft.cOutput,
@@ -701,10 +569,10 @@ func (nft *NFTables) inputPublicRules(c *nftables.Conn, iface string) error {
 	// iifname "eth0" udp dport 51820 accept
 
 	exprs := make([]expr.Any, 0, 9)
-	exprs = append(exprs, SetIIF(iface)...)
-	exprs = append(exprs, SetProtoUDP()...)
-	exprs = append(exprs, SetDPort(nft.myPort)...)
-	exprs = append(exprs, ExprAccept())
+	exprs = append(exprs, utils.SetIIF(iface)...)
+	exprs = append(exprs, utils.SetProtoUDP()...)
+	exprs = append(exprs, utils.SetDPort(nft.myPort)...)
+	exprs = append(exprs, utils.ExprAccept())
 	rule := &nftables.Rule{
 		Table: nft.tFilter,
 		Chain: nft.cInput,
@@ -723,10 +591,10 @@ func (nft *NFTables) outputPublicRules(c *nftables.Conn, iface string) error {
 	// oifname "eth0" udp sport 51820 accept
 
 	exprs := make([]expr.Any, 0, 10)
-	exprs = append(exprs, SetOIF(iface)...)
-	exprs = append(exprs, SetProtoUDP()...)
-	exprs = append(exprs, SetSPort(nft.myPort)...)
-	exprs = append(exprs, ExprAccept())
+	exprs = append(exprs, utils.SetOIF(iface)...)
+	exprs = append(exprs, utils.SetProtoUDP()...)
+	exprs = append(exprs, utils.SetSPort(nft.myPort)...)
+	exprs = append(exprs, utils.ExprAccept())
 	rule := &nftables.Rule{
 		Table: nft.tFilter,
 		Chain: nft.cOutput,
@@ -747,11 +615,11 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	// --
 	// iifname "wg0" icmp type echo-request ct state new accept
 	exprs := make([]expr.Any, 0, 12)
-	exprs = append(exprs, SetIIF(nft.myIface)...)
-	exprs = append(exprs, SetProtoICMP()...)
-	exprs = append(exprs, SetICMPTypeEchoRequest()...)
-	exprs = append(exprs, SetConntrackStateNew()...)
-	exprs = append(exprs, ExprAccept())
+	exprs = append(exprs, utils.SetIIF(nft.myIface)...)
+	exprs = append(exprs, utils.SetProtoICMP()...)
+	exprs = append(exprs, utils.SetICMPTypeEchoRequest()...)
+	exprs = append(exprs, utils.SetConntrackStateNew()...)
+	exprs = append(exprs, utils.ExprAccept())
 	rule := &nftables.Rule{
 		Table: nft.tFilter,
 		Chain: nft.cInput,
@@ -763,8 +631,8 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	// ct state { established, related } accept
 	// --
 	// iifname "wg0" ip protocol icmp ct state { established, related } accept
-	ctStateSet := GetConntrackStateSet(nft.tFilter)
-	elems := GetConntrackStateSetElems(
+	ctStateSet := utils.GetConntrackStateSet(nft.tFilter)
+	elems := utils.GetConntrackStateSetElems(
 		[]string{"established", "related"})
 	err := c.AddSet(ctStateSet, elems)
 	if err != nil {
@@ -772,10 +640,10 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	}
 
 	exprs = make([]expr.Any, 0, 7)
-	exprs = append(exprs, SetIIF(nft.myIface)...)
-	exprs = append(exprs, SetProtoICMP()...)
-	exprs = append(exprs, SetConntrackStateSet(ctStateSet)...)
-	exprs = append(exprs, ExprAccept())
+	exprs = append(exprs, utils.SetIIF(nft.myIface)...)
+	exprs = append(exprs, utils.SetProtoICMP()...)
+	exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
+	exprs = append(exprs, utils.ExprAccept())
 
 	rule = &nftables.Rule{
 		Table: nft.tFilter,
@@ -789,15 +657,15 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	// ct state { new, established } accept
 	// --
 	// iifname "wg0" tcp dport { https, 8443 } ip saddr @mymanager_ipset ct state { established, new } accept
-	ctStateSet = GetConntrackStateSet(nft.tFilter)
-	elems = GetConntrackStateSetElems(
+	ctStateSet = utils.GetConntrackStateSet(nft.tFilter)
+	elems = utils.GetConntrackStateSetElems(
 		[]string{"new", "established"})
 	err = c.AddSet(ctStateSet, elems)
 	if err != nil {
 		return err
 	}
 
-	portSet := GetPortSet(nft.tFilter)
+	portSet := utils.GetPortSet(nft.tFilter)
 	portSetElems := make([]nftables.SetElement, len(nft.managerPorts))
 	for i, p := range nft.managerPorts {
 		portSetElems[i] = nftables.SetElement{
@@ -809,12 +677,12 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	}
 
 	exprs = make([]expr.Any, 0, 9)
-	exprs = append(exprs, SetIIF(nft.myIface)...)
-	exprs = append(exprs, SetProtoTCP()...)
-	exprs = append(exprs, SetDPortSet(portSet)...)
-	exprs = append(exprs, SetSAddrSet(nft.filterSetMyManagerIP)...)
-	exprs = append(exprs, SetConntrackStateSet(ctStateSet)...)
-	exprs = append(exprs, ExprAccept())
+	exprs = append(exprs, utils.SetIIF(nft.myIface)...)
+	exprs = append(exprs, utils.SetProtoTCP()...)
+	exprs = append(exprs, utils.SetDPortSet(portSet)...)
+	exprs = append(exprs, utils.SetSAddrSet(nft.filterSetMyManagerIP)...)
+	exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
+	exprs = append(exprs, utils.ExprAccept())
 	rule = &nftables.Rule{
 		Table: nft.tFilter,
 		Chain: nft.cInput,
@@ -826,8 +694,8 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	// ct state { new, established } accept
 	// --
 	// oifname "wg0" ip protocol icmp ct state { established, new } accept
-	ctStateSet = GetConntrackStateSet(nft.tFilter)
-	elems = GetConntrackStateSetElems(
+	ctStateSet = utils.GetConntrackStateSet(nft.tFilter)
+	elems = utils.GetConntrackStateSetElems(
 		[]string{"new", "established"})
 	err = c.AddSet(ctStateSet, elems)
 	if err != nil {
@@ -835,10 +703,10 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	}
 
 	exprs = make([]expr.Any, 0, 7)
-	exprs = append(exprs, SetOIF(nft.myIface)...)
-	exprs = append(exprs, SetProtoICMP()...)
-	exprs = append(exprs, SetConntrackStateSet(ctStateSet)...)
-	exprs = append(exprs, ExprAccept())
+	exprs = append(exprs, utils.SetOIF(nft.myIface)...)
+	exprs = append(exprs, utils.SetProtoICMP()...)
+	exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
+	exprs = append(exprs, utils.ExprAccept())
 
 	rule = &nftables.Rule{
 		Table: nft.tFilter,
@@ -852,7 +720,7 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	// ct state established accept
 	// --
 	// oifname "wg0" tcp sport { https, 8443 } ct state established accept
-	portSet = GetPortSet(nft.tFilter)
+	portSet = utils.GetPortSet(nft.tFilter)
 	portSetElems = make([]nftables.SetElement, len(nft.managerPorts))
 	for i, p := range nft.managerPorts {
 		portSetElems[i] = nftables.SetElement{
@@ -864,12 +732,12 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	}
 
 	exprs = make([]expr.Any, 0, 10)
-	exprs = append(exprs, SetOIF(nft.myIface)...)
-	exprs = append(exprs, SetProtoTCP()...)
-	exprs = append(exprs, SetSPortSet(portSet)...)
-	exprs = append(exprs, SetDAddrSet(nft.filterSetMyManagerIP)...)
-	exprs = append(exprs, SetConntrackStateEstablished()...)
-	exprs = append(exprs, ExprAccept())
+	exprs = append(exprs, utils.SetOIF(nft.myIface)...)
+	exprs = append(exprs, utils.SetProtoTCP()...)
+	exprs = append(exprs, utils.SetSPortSet(portSet)...)
+	exprs = append(exprs, utils.SetDAddrSet(nft.filterSetMyManagerIP)...)
+	exprs = append(exprs, utils.SetConntrackStateEstablished()...)
+	exprs = append(exprs, utils.ExprAccept())
 	rule = &nftables.Rule{
 		Table: nft.tFilter,
 		Chain: nft.cOutput,
@@ -887,9 +755,9 @@ func (nft *NFTables) sdnForwardRules(c *nftables.Conn) error {
 	// --
 	// tcp sport smtp drop;
 	exprs := make([]expr.Any, 0, 10)
-	exprs = append(exprs, SetProtoTCP()...)
-	exprs = append(exprs, SetSPort(25)...)
-	exprs = append(exprs, ExprDrop())
+	exprs = append(exprs, utils.SetProtoTCP()...)
+	exprs = append(exprs, utils.SetSPort(25)...)
+	exprs = append(exprs, utils.ExprDrop())
 	rule := &nftables.Rule{
 		Table: nft.tFilter,
 		Chain: nft.cForward,
@@ -905,10 +773,10 @@ func (nft *NFTables) sdnForwardRules(c *nftables.Conn) error {
 	// --
 	// iifname "wg0" oifname "eth0" accept;
 	exprs = make([]expr.Any, 0, 10)
-	exprs = append(exprs, SetIIF(nft.myIface)...)
-	exprs = append(exprs, SetSAddrSet(nft.filterSetMyForwardIP)...)
-	exprs = append(exprs, SetOIF(nft.wanIface)...)
-	exprs = append(exprs, ExprAccept())
+	exprs = append(exprs, utils.SetIIF(nft.myIface)...)
+	exprs = append(exprs, utils.SetSAddrSet(nft.filterSetMyForwardIP)...)
+	exprs = append(exprs, utils.SetOIF(nft.wanIface)...)
+	exprs = append(exprs, utils.ExprAccept())
 	rule = &nftables.Rule{
 		Table: nft.tFilter,
 		Chain: nft.cForward,
@@ -920,8 +788,8 @@ func (nft *NFTables) sdnForwardRules(c *nftables.Conn) error {
 	// ct state { established, related } accept
 	// --
 	// ct state { established, related } accept;
-	ctStateSet := GetConntrackStateSet(nft.tFilter)
-	elems := GetConntrackStateSetElems(
+	ctStateSet := utils.GetConntrackStateSet(nft.tFilter)
+	elems := utils.GetConntrackStateSetElems(
 		[]string{"established", "related"})
 	err := c.AddSet(ctStateSet, elems)
 	if err != nil {
@@ -929,11 +797,11 @@ func (nft *NFTables) sdnForwardRules(c *nftables.Conn) error {
 	}
 
 	exprs = make([]expr.Any, 0, 10)
-	exprs = append(exprs, SetIIF(nft.wanIface)...)
-	exprs = append(exprs, SetDAddrSet(nft.filterSetMyForwardIP)...)
-	exprs = append(exprs, SetOIF(nft.myIface)...)
-	exprs = append(exprs, SetConntrackStateSet(ctStateSet)...)
-	exprs = append(exprs, ExprAccept())
+	exprs = append(exprs, utils.SetIIF(nft.wanIface)...)
+	exprs = append(exprs, utils.SetDAddrSet(nft.filterSetMyForwardIP)...)
+	exprs = append(exprs, utils.SetOIF(nft.myIface)...)
+	exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
+	exprs = append(exprs, utils.ExprAccept())
 	rule = &nftables.Rule{
 		Table: nft.tFilter,
 		Chain: nft.cForward,
@@ -948,9 +816,9 @@ func (nft *NFTables) sdnForwardRules(c *nftables.Conn) error {
 	// --
 	// iifname "wg0" oifname "wg0" accept;
 	exprs = make([]expr.Any, 0, 10)
-	exprs = append(exprs, SetIIF(nft.myIface)...)
-	exprs = append(exprs, SetOIF(nft.myIface)...)
-	exprs = append(exprs, ExprAccept())
+	exprs = append(exprs, utils.SetIIF(nft.myIface)...)
+	exprs = append(exprs, utils.SetOIF(nft.myIface)...)
+	exprs = append(exprs, utils.ExprAccept())
 	rule = &nftables.Rule{
 		Table: nft.tFilter,
 		Chain: nft.cForward,
@@ -968,9 +836,9 @@ func (nft *NFTables) natRules(c *nftables.Conn) {
 	// --
 	// oifname "eth0" snat to 192.168.15.11
 	exprs := make([]expr.Any, 0, 10)
-	exprs = append(exprs, SetOIF(nft.wanIface)...)
-	exprs = append(exprs, ExprImmediate(nft.wanIP))
-	exprs = append(exprs, ExprSNAT(1, 0))
+	exprs = append(exprs, utils.SetOIF(nft.wanIface)...)
+	exprs = append(exprs, utils.ExprImmediate(nft.wanIP))
+	exprs = append(exprs, utils.ExprSNAT(1, 0))
 	rule := &nftables.Rule{
 		Table: nft.tNAT,
 		Chain: nft.cPostrouting,
@@ -988,8 +856,8 @@ func (nft *NFTables) UpdateTrustIPs(del, add []net.IP) error {
 	return nft.updateIPSet(nft.filterSetTrustIP, del, add)
 }
 
-// UpdateWGManagerIPs updates filterSetMyManagerIP.
-func (nft *NFTables) UpdateWGManagerIPs(del, add []net.IP) error {
+// UpdateMyManagerIPs updates filterSetMyManagerIP.
+func (nft *NFTables) UpdateMyManagerIPs(del, add []net.IP) error {
 	if !nft.applied {
 		return nil
 	}
@@ -997,8 +865,8 @@ func (nft *NFTables) UpdateWGManagerIPs(del, add []net.IP) error {
 	return nft.updateIPSet(nft.filterSetMyManagerIP, del, add)
 }
 
-// UpdateWGForwardWanIPs updates filterSetMyForwardIP.
-func (nft *NFTables) UpdateWGForwardWanIPs(del, add []net.IP) error {
+// UpdateMyForwardWanIPs updates filterSetMyForwardIP.
+func (nft *NFTables) UpdateMyForwardWanIPs(del, add []net.IP) error {
 	if !nft.applied {
 		return nil
 	}
@@ -1148,4 +1016,40 @@ func (nft *NFTables) IfacesIPs() ([]net.IP, error) {
 	}
 
 	return ips, nil
+}
+
+func (nft *NFTables) TableFilter() *nftables.Table {
+	return nft.tFilter
+}
+
+func (nft *NFTables) ChainInput() *nftables.Chain {
+	return nft.cInput
+}
+
+func (nft *NFTables) ChainForward() *nftables.Chain {
+	return nft.cForward
+}
+
+func (nft *NFTables) ChainOutput() *nftables.Chain {
+	return nft.cOutput
+}
+
+func (nft *NFTables) NATFilter() *nftables.Table {
+	return nft.tNAT
+}
+
+func (nft *NFTables) ChainPostrouting() *nftables.Chain {
+	return nft.cPostrouting
+}
+
+func (nft *NFTables) FilterSetTrustIP() *nftables.Set {
+	return nft.filterSetTrustIP
+}
+
+func (nft *NFTables) FilterSetMyManagerIP() *nftables.Set {
+	return nft.filterSetMyManagerIP
+}
+
+func (nft *NFTables) FilterSetMyForwardIP() *nftables.Set {
+	return nft.filterSetMyForwardIP
 }
