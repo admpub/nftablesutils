@@ -15,7 +15,7 @@ func TestNewRuleData(t *testing.T) {
 
 	id := []byte{0xd, 0xe, 0xa, 0xd}
 
-	rD := NewRuleData(id, res)
+	rD := NewData(id, res)
 	assert.Equal(t, rD.ID, id)
 
 	assert.Equal(t, rD.Exprs[0], &expr.Meta{Key: 0xf, SourceRegister: false, Register: 0x1})

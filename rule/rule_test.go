@@ -34,7 +34,7 @@ func TestAddRule(t *testing.T) {
 
 	res, err := utils.CompareProtocolFamily(byte(nftables.TableFamilyIPv4))
 	assert.Nil(t, err)
-	rD := NewRuleData([]byte{0xd, 0xe, 0xa, 0xd}, res)
+	rD := NewData([]byte{0xd, 0xe, 0xa, 0xd}, res)
 
 	// we only test the private add since we don't yet have a good way to test responses from netlink, only messages to netlink
 	add(c, table, chain, rD)
@@ -142,7 +142,7 @@ func TestGetRuleTarget(t *testing.T) {
 		Name:  "testchain",
 	}
 
-	ruleTarget := NewRuleTarget(table, chain)
+	ruleTarget := New(table, chain)
 
 	rtTable, rtChain := ruleTarget.GetTableAndChain()
 

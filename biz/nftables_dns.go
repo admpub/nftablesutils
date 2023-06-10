@@ -54,8 +54,7 @@ func (nft *NFTables) outputDNSRules(c *nftables.Conn, iface string) error {
 	// --
 	// oifname "eth0" udp dport domain ct state { established, new } accept
 	ctStateSet := utils.GetConntrackStateSet(nft.tFilter)
-	elems := utils.GetConntrackStateSetElems(
-		[]string{"new", "established"})
+	elems := utils.GetConntrackStateSetElems(defaultStateWithNew)
 	err := c.AddSet(ctStateSet, elems)
 	if err != nil {
 		return err
@@ -80,8 +79,7 @@ func (nft *NFTables) outputDNSRules(c *nftables.Conn, iface string) error {
 	// --
 	// oifname "eth0" tcp dport domain ct state { established, new } accept
 	ctStateSet = utils.GetConntrackStateSet(nft.tFilter)
-	elems = utils.GetConntrackStateSetElems(
-		[]string{"new", "established"})
+	elems = utils.GetConntrackStateSetElems(defaultStateWithNew)
 	err = c.AddSet(ctStateSet, elems)
 	if err != nil {
 		return err

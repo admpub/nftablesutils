@@ -405,8 +405,7 @@ func (nft *NFTables) inputHostBaseRules(c *nftables.Conn, iface string) error {
 	// --
 	// iifname "eth0" ip protocol icmp ct state { established, related } accept
 	ctStateSet := utils.GetConntrackStateSet(nft.tFilter)
-	elems := utils.GetConntrackStateSetElems(
-		[]string{"established", "related"})
+	elems := utils.GetConntrackStateSetElems(defaultStateWithOld)
 	err := c.AddSet(ctStateSet, elems)
 	if err != nil {
 		return err
@@ -444,8 +443,7 @@ func (nft *NFTables) outputHostBaseRules(c *nftables.Conn, iface string) error {
 	// --
 	// oifname "eth0" ip protocol icmp ct state { established, new } accept
 	ctStateSet := utils.GetConntrackStateSet(nft.tFilter)
-	elems := utils.GetConntrackStateSetElems(
-		[]string{"new", "established"})
+	elems := utils.GetConntrackStateSetElems(defaultStateWithNew)
 	err := c.AddSet(ctStateSet, elems)
 	if err != nil {
 		return err
@@ -476,6 +474,9 @@ func (nft *NFTables) outputHostBaseRules(c *nftables.Conn, iface string) error {
 	return nil
 }
 
+var defaultStateWithNew = []string{utils.StateNew, utils.StateEstablished}
+var defaultStateWithOld = []string{utils.StateEstablished, utils.StateRelated}
+
 // inputTrustIPSetRules to apply.
 func (nft *NFTables) inputTrustIPSetRules(c *nftables.Conn, iface string) error {
 	// cmd: nft add rule ip filter input meta iifname "eth0" ip protocol icmp \
@@ -502,8 +503,7 @@ func (nft *NFTables) inputTrustIPSetRules(c *nftables.Conn, iface string) error 
 	// --
 	// iifname "eth0" tcp dport { 5522 } ip saddr @trust_ipset ct state { established, new } accept
 	ctStateSet := utils.GetConntrackStateSet(nft.tFilter)
-	elems := utils.GetConntrackStateSetElems(
-		[]string{"new", "established"})
+	elems := utils.GetConntrackStateSetElems(defaultStateWithNew)
 	err := c.AddSet(ctStateSet, elems)
 	if err != nil {
 		return err
@@ -633,8 +633,7 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	// --
 	// iifname "wg0" ip protocol icmp ct state { established, related } accept
 	ctStateSet := utils.GetConntrackStateSet(nft.tFilter)
-	elems := utils.GetConntrackStateSetElems(
-		[]string{"established", "related"})
+	elems := utils.GetConntrackStateSetElems(defaultStateWithOld)
 	err := c.AddSet(ctStateSet, elems)
 	if err != nil {
 		return err
@@ -659,8 +658,7 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	// --
 	// iifname "wg0" tcp dport { https, 8443 } ip saddr @mymanager_ipset ct state { established, new } accept
 	ctStateSet = utils.GetConntrackStateSet(nft.tFilter)
-	elems = utils.GetConntrackStateSetElems(
-		[]string{"new", "established"})
+	elems = utils.GetConntrackStateSetElems(defaultStateWithNew)
 	err = c.AddSet(ctStateSet, elems)
 	if err != nil {
 		return err
@@ -696,8 +694,7 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	// --
 	// oifname "wg0" ip protocol icmp ct state { established, new } accept
 	ctStateSet = utils.GetConntrackStateSet(nft.tFilter)
-	elems = utils.GetConntrackStateSetElems(
-		[]string{"new", "established"})
+	elems = utils.GetConntrackStateSetElems(defaultStateWithNew)
 	err = c.AddSet(ctStateSet, elems)
 	if err != nil {
 		return err
@@ -790,8 +787,7 @@ func (nft *NFTables) sdnForwardRules(c *nftables.Conn) error {
 	// --
 	// ct state { established, related } accept;
 	ctStateSet := utils.GetConntrackStateSet(nft.tFilter)
-	elems := utils.GetConntrackStateSetElems(
-		[]string{"established", "related"})
+	elems := utils.GetConntrackStateSetElems(defaultStateWithOld)
 	err := c.AddSet(ctStateSet, elems)
 	if err != nil {
 		return err

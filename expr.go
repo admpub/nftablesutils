@@ -2,6 +2,8 @@ package nftablesutils
 
 import (
 	"net"
+	"strconv"
+	"strings"
 
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
@@ -122,8 +124,8 @@ func ExprLookupSet(reg uint32, name string, id uint32) *expr.Lookup {
 	}
 }
 
-// ExprCtLoadState wrapper
-func ExprCtLoadState(reg uint32) *expr.Ct {
+// ExprCtState wrapper
+func ExprCtState(reg uint32) *expr.Ct {
 	// [ ct load state => reg 1 ]
 	return &expr.Ct{
 		// Key:      unix.NFT_CT_STATE,
@@ -172,4 +174,73 @@ func ExprDrop() *expr.Verdict {
 func ExprReject(t uint32, c uint8) *expr.Reject {
 	// [ reject type 0 code 3 ]
 	return &expr.Reject{Type: t, Code: c}
+}
+
+// ExprConnLimit wrapper
+func ExprConnLimit(count uint32, flags uint32) *expr.Connlimit {
+	return &expr.Connlimit{
+		Count: count,
+		Flags: flags,
+	}
+}
+
+// ExprLimit wrapper
+func ExprLimit(t expr.LimitType, rate uint64, over bool, unit expr.LimitTime, burst uint32) *expr.Limit {
+	return &expr.Limit{
+		Type:  t,
+		Rate:  rate,
+		Over:  over,
+		Unit:  unit,
+		Burst: burst,
+	}
+}
+
+// ExprLimits ExprLimit wrapper
+// rateStr := `1+/p/s`
+func ExprLimits(rateStr string, burst uint32) *expr.Limit {
+	// 1+/p/s
+	e := &expr.Limit{
+		Type:  expr.LimitTypePktBytes,
+		Rate:  0,
+		Over:  false,
+		Unit:  expr.LimitTimeSecond,
+		Burst: burst,
+	}
+
+	parts := strings.SplitN(rateStr, `/`, 3)
+	switch len(parts) {
+	case 3:
+		if len(parts[2]) > 0 {
+			switch parts[2][0] {
+			case 's':
+				e.Unit = expr.LimitTimeSecond
+			case 'm':
+				e.Unit = expr.LimitTimeMinute
+			case 'h':
+				e.Unit = expr.LimitTimeHour
+			case 'd':
+				e.Unit = expr.LimitTimeDay
+			case 'w':
+				e.Unit = expr.LimitTimeWeek
+			}
+		}
+		fallthrough
+	case 2:
+		if len(parts[1]) > 0 {
+			switch parts[1][0] {
+			case 'p':
+				e.Type = expr.LimitTypePkts
+			case 'b':
+				e.Type = expr.LimitTypePktBytes
+			}
+		}
+		fallthrough
+	case 1:
+		e.Over = strings.HasSuffix(parts[0], `+`)
+		if e.Over {
+			parts[0] = strings.TrimSuffix(parts[0], `+`)
+		}
+		e.Rate, _ = strconv.ParseUint(parts[0], 10, 64)
+	}
+	return e
 }

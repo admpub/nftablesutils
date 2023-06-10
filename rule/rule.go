@@ -15,7 +15,7 @@ type RuleTarget struct {
 }
 
 // Create a new location to manipulate nftables rules
-func NewRuleTarget(table *nftables.Table, chain *nftables.Chain) RuleTarget {
+func New(table *nftables.Table, chain *nftables.Chain) RuleTarget {
 	return RuleTarget{
 		table: table,
 		chain: chain,

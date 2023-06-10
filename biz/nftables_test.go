@@ -1,9 +1,12 @@
 package biz
 
 import (
+	"fmt"
 	"testing"
 
 	utils "github.com/admpub/nftablesutils"
+	"github.com/admpub/nftablesutils/rule"
+	"github.com/google/nftables"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,6 +25,36 @@ func TestNFTables(t *testing.T) {
 	}
 	c, err := Init(cfg, []uint16{8080})
 	assert.NoError(t, err)
-	c.Cleanup()
+
+	target := rule.New(c.TableFilter(), c.ChainInput())
+	c.Do(func(conn *nftables.Conn) error {
+		exp := utils.JoinExprs(
+			utils.SetProtoTCP(),
+			utils.SetDPort(3306),
+		).Add(utils.Accept())
+		_, err := target.Add(conn, rule.NewData([]byte(`001`), exp))
+		if err != nil {
+			return err
+		}
+		err = conn.Flush()
+		if err != nil {
+			return err
+		}
+		rules, err := target.List(conn)
+		if err != nil {
+			return err
+		}
+		for _, rule := range rules {
+			fmt.Printf("table=%q, chain=%q, position=%d, handle=%d, flags=%d, exprs=%d, userData=%q\n",
+				rule.Table.Name, rule.Chain.Name,
+				rule.Position, rule.Handle, rule.Flags, len(rule.Exprs), rule.UserData,
+			)
+		}
+
+		//ppnocolor.Println(rules)
+		return err
+	})
+
+	defer c.Cleanup()
 	_ = cfg
 }

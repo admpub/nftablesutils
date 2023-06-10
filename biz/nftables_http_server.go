@@ -51,8 +51,7 @@ func (nft *NFTables) outputHTTPServerRules(c *nftables.Conn, iface string) error
 	}
 
 	ctStateSet := utils.GetConntrackStateSet(nft.tFilter)
-	elems = utils.GetConntrackStateSetElems(
-		[]string{"new", "established"})
+	elems = utils.GetConntrackStateSetElems(defaultStateWithNew)
 	err = c.AddSet(ctStateSet, elems)
 	if err != nil {
 		return err

@@ -15,7 +15,7 @@ type RuleData struct {
 }
 
 // Create a new RuleData from an ID and list of nftables expressions
-func NewRuleData(id []byte, exprs []expr.Any) RuleData {
+func NewData(id []byte, exprs []expr.Any) RuleData {
 	return RuleData{
 		Exprs: exprs,
 		ID:    id,
