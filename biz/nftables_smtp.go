@@ -7,6 +7,9 @@ import (
 )
 
 func (nft *NFTables) forwardSMTPRules(c *nftables.Conn) error {
+	if nft.cfg.DefaultPolicy != "accept" {
+		return nil
+	}
 	// cmd: nft add rule ip filter forward \
 	// ip protocol tcp tcp sport 25 drop
 	// --
