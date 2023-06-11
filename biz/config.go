@@ -9,7 +9,8 @@ import (
 type Config struct {
 	Enabled          bool
 	NetworkNamespace string
-	DefaultPolicy    string
+	DefaultPolicy    string // accept / drop
+	TablePrefix      string
 	MyIface          string
 	MyPort           uint16
 	Ifaces           []string

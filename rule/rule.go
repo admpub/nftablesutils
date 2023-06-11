@@ -43,6 +43,7 @@ func add(c *nftables.Conn, table *nftables.Table, chain *nftables.Chain, ruleDat
 		Chain:    chain,
 		Exprs:    ruleData.Exprs,
 		UserData: ruleData.ID,
+		Handle:   ruleData.Handle,
 	})
 }
 

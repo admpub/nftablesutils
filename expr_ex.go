@@ -43,6 +43,11 @@ const (
 	ProtoUDPLen    = 1
 )
 
+const (
+	ProtoICMPOffset = 9
+	ProtoICMPLen    = 1
+)
+
 // Default register and default xt_bpf version
 const (
 	defaultRegister = 1

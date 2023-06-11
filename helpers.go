@@ -6,7 +6,7 @@ import (
 	"github.com/google/nftables/expr"
 )
 
-// SetIIF helper.
+// SetIIF equals input-interface
 func SetIIF(iface string) Exprs {
 	exprs := []expr.Any{
 		ExprIIFName(),
@@ -16,7 +16,7 @@ func SetIIF(iface string) Exprs {
 	return exprs
 }
 
-// SetOIF helper.
+// SetOIF equals output-interface
 func SetOIF(iface string) Exprs {
 	exprs := []expr.Any{
 		ExprOIFName(),
@@ -26,7 +26,7 @@ func SetOIF(iface string) Exprs {
 	return exprs
 }
 
-// SetNIIF helper.
+// SetNIIF not equals input-interface
 func SetNIIF(iface string) Exprs {
 	exprs := []expr.Any{
 		ExprIIFName(),
@@ -36,7 +36,7 @@ func SetNIIF(iface string) Exprs {
 	return exprs
 }
 
-// SetNOIF helper.
+// SetNOIF not equals output-interface
 func SetNOIF(iface string) Exprs {
 	exprs := []expr.Any{
 		ExprOIFName(),
@@ -50,7 +50,7 @@ func SetNOIF(iface string) Exprs {
 func SetSourceNet(addr []byte, mask []byte) Exprs {
 	exprs := []expr.Any{
 		IPv4SourceAddress(defaultRegister),
-		ExprBitwise(defaultRegister, defaultRegister, 4,
+		ExprBitwise(defaultRegister, defaultRegister, IPv4AddrLen,
 			mask,
 			[]byte{0, 0, 0, 0},
 		),
@@ -63,7 +63,7 @@ func SetSourceNet(addr []byte, mask []byte) Exprs {
 // SetProtoICMP helper.
 func SetProtoICMP() Exprs {
 	exprs := []expr.Any{
-		ExprPayloadNetHeader(1, 9, 1),
+		ExprPayloadNetHeader(defaultRegister, ProtoICMPOffset, ProtoICMPLen),
 		ExprCmpEq(defaultRegister, TypeProtoICMP()),
 	}
 

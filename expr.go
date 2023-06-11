@@ -25,13 +25,13 @@ func ExprCounter() *expr.Counter {
 // ExprIIFName wrapper
 func ExprIIFName() *expr.Meta {
 	// [ meta load iifname => reg 1 ]
-	return ExprMeta(expr.MetaKeyIIFNAME, 1)
+	return ExprMeta(expr.MetaKeyIIFNAME, defaultRegister)
 }
 
 // ExprOIFName wrapper
 func ExprOIFName() *expr.Meta {
 	// [ meta load oifname => reg 1 ]
-	return ExprMeta(expr.MetaKeyOIFNAME, 1)
+	return ExprMeta(expr.MetaKeyOIFNAME, defaultRegister)
 }
 
 // ExprCmpEqIFName wrapper
@@ -39,7 +39,7 @@ func ExprCmpEqIFName(name string) *expr.Cmp {
 	// [ cmp eq reg 1 0x00006f6c 0x00000000 0x00000000 0x00000000 ]
 	return &expr.Cmp{
 		Op:       expr.CmpOpEq,
-		Register: 1,
+		Register: defaultRegister,
 		Data:     ifname(name),
 	}
 }
@@ -49,7 +49,7 @@ func ExprCmpNeqIFName(name string) *expr.Cmp {
 	// [ cmp neq reg 1 0x00006f6c 0x00000000 0x00000000 0x00000000 ]
 	return &expr.Cmp{
 		Op:       expr.CmpOpNeq,
-		Register: 1,
+		Register: defaultRegister,
 		Data:     ifname(name),
 	}
 }

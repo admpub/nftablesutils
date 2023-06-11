@@ -36,8 +36,8 @@ func TestNFTables(t *testing.T) {
 	c, err := Init(cfg, []uint16{8080})
 	assert.NoError(t, err)
 
-	target := rule.New(c.TableFilter(), c.ChainInput())
 	c.Do(func(conn *nftables.Conn) error {
+		target := rule.New(c.TableFilter(), c.ChainInput())
 		exp := utils.JoinExprs(
 			utils.SetProtoTCP(),
 			utils.SetDPort(3306),

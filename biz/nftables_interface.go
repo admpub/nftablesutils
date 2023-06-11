@@ -1,41 +1,88 @@
 package biz
 
 import (
-	"net"
-
+	utils "github.com/admpub/nftablesutils"
 	"github.com/google/nftables"
+	"github.com/google/nftables/expr"
 )
 
-type INFTables interface {
-	// UpdateTrustIPs updates filterSetTrustIP.
-	UpdateTrustIPs(del, add []net.IP) error
+func (nft *NFTables) forwardInterfaceRules(c *nftables.Conn) error {
+	// cmd: nft add rule ip filter forward \
+	// meta iifname "wg0" \
+	// ip saddr @wgforward_ipset \
+	// meta oifname "eth0" \
+	// accept
+	// --
+	// iifname "wg0" oifname "eth0" accept;
+	exprs := make([]expr.Any, 0, 10)
+	exprs = append(exprs, utils.SetIIF(nft.myIface)...)
+	exprs = append(exprs, utils.SetSAddrSet(nft.filterSetMyForwardIP)...)
+	exprs = append(exprs, utils.SetOIF(nft.wanIface)...)
+	exprs = append(exprs, utils.ExprAccept())
+	rule := &nftables.Rule{
+		Table: nft.tFilter,
+		Chain: nft.cForward,
+		Exprs: exprs,
+	}
+	c.AddRule(rule)
 
-	// UpdateMyManagerIPs updates filterSetMyManagerIP.
-	UpdateMyManagerIPs(del, add []net.IP) error
+	// cmd: nft add rule ip filter forward \
+	// ct state { established, related } accept
+	// --
+	// ct state { established, related } accept;
+	ctStateSet := utils.GetConntrackStateSet(nft.tFilter)
+	elems := utils.GetConntrackStateSetElems(defaultStateWithOld)
+	err := c.AddSet(ctStateSet, elems)
+	if err != nil {
+		return err
+	}
 
-	// UpdateMyForwardWanIPs updates filterSetMyForwardIP.
-	UpdateMyForwardWanIPs(del, add []net.IP) error
+	exprs = make([]expr.Any, 0, 10)
+	exprs = append(exprs, utils.SetIIF(nft.wanIface)...)
+	exprs = append(exprs, utils.SetDAddrSet(nft.filterSetMyForwardIP)...)
+	exprs = append(exprs, utils.SetOIF(nft.myIface)...)
+	exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
+	exprs = append(exprs, utils.ExprAccept())
+	rule = &nftables.Rule{
+		Table: nft.tFilter,
+		Chain: nft.cForward,
+		Exprs: exprs,
+	}
+	c.AddRule(rule)
 
-	// Cleanup rules to default policy filtering.
-	Cleanup() error
+	// cmd: nft add rule ip filter forward \
+	// meta iifname "wg0" \
+	// meta oifname "wg0" \
+	// accept
+	// --
+	// iifname "wg0" oifname "wg0" accept;
+	exprs = make([]expr.Any, 0, 10)
+	exprs = append(exprs, utils.SetIIF(nft.myIface)...)
+	exprs = append(exprs, utils.SetOIF(nft.myIface)...)
+	exprs = append(exprs, utils.ExprAccept())
+	rule = &nftables.Rule{
+		Table: nft.tFilter,
+		Chain: nft.cForward,
+		Exprs: exprs,
+	}
+	c.AddRule(rule)
+	return nil
+}
 
-	// WanIP returns ip address of wan interface.
-	WanIP() net.IP
-
-	// IfacesIPs returns ip addresses list of additional ifaces.
-	IfacesIPs() ([]net.IP, error)
-
-	// -- table & chain & set --
-
-	TableFilter() *nftables.Table
-	ChainInput() *nftables.Chain
-	ChainForward() *nftables.Chain
-	ChainOutput() *nftables.Chain
-	NATFilter() *nftables.Table
-	ChainPostrouting() *nftables.Chain
-	FilterSetTrustIP() *nftables.Set
-	FilterSetMyManagerIP() *nftables.Set
-	FilterSetMyForwardIP() *nftables.Set
-
-	Do(f func(conn *nftables.Conn) error) error
+func (nft *NFTables) natInterfaceRules(c *nftables.Conn) error {
+	// cmd: nft add rule ip nat postrouting meta oifname "eth0" \
+	// snat 192.168.0.1
+	// --
+	// oifname "eth0" snat to 192.168.15.11
+	exprs := make([]expr.Any, 0, 10)
+	exprs = append(exprs, utils.SetOIF(nft.wanIface)...)
+	exprs = append(exprs, utils.ExprImmediate(nft.wanIP))
+	exprs = append(exprs, utils.ExprSNAT(1, 0))
+	rule := &nftables.Rule{
+		Table: nft.tNAT,
+		Chain: nft.cPostrouting,
+		Exprs: exprs,
+	}
+	c.AddRule(rule)
+	return nil
 }

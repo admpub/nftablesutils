@@ -2,39 +2,49 @@ package nftablesutils
 
 import "github.com/google/nftables"
 
+var (
+	typeProtoICMP                 = []byte{0x01}
+	typeICMPTypeEchoRequest       = []byte{0x08}
+	typeProtoUDP                  = []byte{0x11}
+	typeProtoTCP                  = []byte{0x06}
+	typeConntrackStateNew         = []byte{0x08, 0x00, 0x00, 0x00}
+	typeConntrackStateEstablished = []byte{0x02, 0x00, 0x00, 0x00}
+	typeConntrackStateRelated     = []byte{0x04, 0x00, 0x00, 0x00}
+)
+
 // TypeProtoICMP bytes.
 func TypeProtoICMP() []byte {
-	return []byte{0x01}
+	return typeProtoICMP
 }
 
 // TypeICMPTypeEchoRequest bytes.
 func TypeICMPTypeEchoRequest() []byte {
-	return []byte{0x08}
+	return typeICMPTypeEchoRequest
 }
 
 // TypeProtoUDP bytes.
 func TypeProtoUDP() []byte {
-	return []byte{0x11}
+	return typeProtoUDP
 }
 
 // TypeProtoTCP bytes.
 func TypeProtoTCP() []byte {
-	return []byte{0x06}
+	return typeProtoTCP
 }
 
 // TypeConntrackStateNew bytes.
 func TypeConntrackStateNew() []byte {
-	return []byte{0x08, 0x00, 0x00, 0x00}
+	return typeConntrackStateNew
 }
 
 // TypeConntrackStateEstablished bytes.
 func TypeConntrackStateEstablished() []byte {
-	return []byte{0x02, 0x00, 0x00, 0x00}
+	return typeConntrackStateEstablished
 }
 
 // TypeConntrackStateRelated bytes.
 func TypeConntrackStateRelated() []byte {
-	return []byte{0x04, 0x00, 0x00, 0x00}
+	return typeConntrackStateRelated
 }
 
 // ConntrackStateDatatype object.
