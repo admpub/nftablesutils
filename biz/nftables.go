@@ -21,14 +21,14 @@ var _ INFTables = &NFTables{}
 func New(tableFamily nftables.TableFamily, c Config, managerPorts []uint16) *NFTables {
 	return &NFTables{
 		tableFamily:  tableFamily,
-		cfg:          c,
+		cfg:          &c,
 		managerPorts: managerPorts,
 	}
 }
 
 // NFTables struct.
 type NFTables struct {
-	cfg         Config
+	cfg         *Config
 	tableFamily nftables.TableFamily
 
 	originNetNS netns.NsHandle
@@ -103,7 +103,8 @@ func (nft *NFTables) Init() error {
 	}
 
 	tNAT := &nftables.Table{
-		Family: nft.tableFamily,
+		//Family: nft.tableFamily,
+		Family: nftables.TableFamilyIPv4,
 		Name:   cfg.TablePrefix + "nat",
 	}
 	cPostrouting := &nftables.Chain{
@@ -128,6 +129,11 @@ func (nft *NFTables) Init() error {
 		Name:    "myforward_ipset",
 		Table:   tFilter,
 		KeyType: nftables.TypeIPAddr,
+	}
+	if tFilter.Family == nftables.TableFamilyIPv6 {
+		filterSetTrustIP.KeyType = nftables.TypeIP6Addr
+		filterSetMyManagerIP.KeyType = nftables.TypeIP6Addr
+		filterSetMyForwardIP.KeyType = nftables.TypeIP6Addr
 	}
 
 	nft.wanIface = wanIface
@@ -382,15 +388,19 @@ func (nft *NFTables) inputLocalIfaceRules(c *nftables.Conn) {
 	exprs = append(exprs, utils.SetNIIF(loIface)...)
 
 	switch nft.tableFamily {
-	case nftables.TableFamilyIPv4:
+	case nftables.TableFamilyIPv4: //127.0.0.0/24
 		exprs = append(exprs, utils.SetSourceIPv4Net([]byte{127, 0, 0, 0}, []byte{255, 255, 255, 0})...)
+		exprs = append(exprs, utils.ExprReject(
+			unix.NFT_REJECT_ICMP_UNREACH,
+			unix.NFT_REJECT_ICMPX_UNREACH,
+		))
 	case nftables.TableFamilyIPv6:
 		exprs = append(exprs, utils.SetCIDRMatcher(utils.ExprDirectionSource, `fe80::/10`, false)...)
+		exprs = append(exprs, utils.ExprReject(
+			unix.NFT_REJECT_ICMP_UNREACH,
+			unix.NFT_REJECT_ICMPX_NO_ROUTE,
+		))
 	}
-	exprs = append(exprs, utils.ExprReject(
-		unix.NFT_REJECT_ICMP_UNREACH,
-		unix.NFT_REJECT_ICMPX_UNREACH,
-	))
 	rule = &nftables.Rule{
 		Table: nft.tFilter,
 		Chain: nft.cInput,

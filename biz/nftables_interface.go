@@ -18,22 +18,24 @@ func (nft *NFTables) forwardInterfaceRules(c *nftables.Conn) error {
 	// accept
 	// --
 	// iifname "wg0" oifname "eth0" accept;
-	exprs := make([]expr.Any, 0, 10)
-	exprs = append(exprs, utils.SetIIF(nft.myIface)...)
-	switch nft.tableFamily {
-	case nftables.TableFamilyIPv4:
-		exprs = append(exprs, utils.SetSAddrSet(nft.filterSetMyForwardIP)...)
-	case nftables.TableFamilyIPv6:
-		exprs = append(exprs, utils.SetSAddrIPv6Set(nft.filterSetMyForwardIP)...)
+	{
+		exprs := make([]expr.Any, 0, 10)
+		exprs = append(exprs, utils.SetIIF(nft.myIface)...)
+		switch nft.tableFamily {
+		case nftables.TableFamilyIPv4:
+			exprs = append(exprs, utils.SetSAddrSet(nft.filterSetMyForwardIP)...)
+		case nftables.TableFamilyIPv6:
+			exprs = append(exprs, utils.SetSAddrIPv6Set(nft.filterSetMyForwardIP)...)
+		}
+		exprs = append(exprs, utils.SetOIF(nft.wanIface)...)
+		exprs = append(exprs, utils.ExprAccept())
+		rule := &nftables.Rule{
+			Table: nft.tFilter,
+			Chain: nft.cForward,
+			Exprs: exprs,
+		}
+		c.AddRule(rule)
 	}
-	exprs = append(exprs, utils.SetOIF(nft.wanIface)...)
-	exprs = append(exprs, utils.ExprAccept())
-	rule := &nftables.Rule{
-		Table: nft.tFilter,
-		Chain: nft.cForward,
-		Exprs: exprs,
-	}
-	c.AddRule(rule)
 
 	// cmd: nft add rule ip filter forward \
 	// ct state { established, related } accept
@@ -46,23 +48,25 @@ func (nft *NFTables) forwardInterfaceRules(c *nftables.Conn) error {
 		return err
 	}
 
-	exprs = make([]expr.Any, 0, 10)
-	exprs = append(exprs, utils.SetIIF(nft.wanIface)...)
-	switch nft.tableFamily {
-	case nftables.TableFamilyIPv4:
-		exprs = append(exprs, utils.SetDAddrSet(nft.filterSetMyForwardIP)...)
-	case nftables.TableFamilyIPv6:
-		exprs = append(exprs, utils.SetDAddrIPv6Set(nft.filterSetMyForwardIP)...)
+	{
+		exprs := make([]expr.Any, 0, 10)
+		exprs = append(exprs, utils.SetIIF(nft.wanIface)...)
+		switch nft.tableFamily {
+		case nftables.TableFamilyIPv4:
+			exprs = append(exprs, utils.SetDAddrSet(nft.filterSetMyForwardIP)...)
+		case nftables.TableFamilyIPv6:
+			exprs = append(exprs, utils.SetDAddrIPv6Set(nft.filterSetMyForwardIP)...)
+		}
+		exprs = append(exprs, utils.SetOIF(nft.myIface)...)
+		exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
+		exprs = append(exprs, utils.ExprAccept())
+		rule := &nftables.Rule{
+			Table: nft.tFilter,
+			Chain: nft.cForward,
+			Exprs: exprs,
+		}
+		c.AddRule(rule)
 	}
-	exprs = append(exprs, utils.SetOIF(nft.myIface)...)
-	exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
-	exprs = append(exprs, utils.ExprAccept())
-	rule = &nftables.Rule{
-		Table: nft.tFilter,
-		Chain: nft.cForward,
-		Exprs: exprs,
-	}
-	c.AddRule(rule)
 
 	// cmd: nft add rule ip filter forward \
 	// meta iifname "wg0" \
@@ -70,11 +74,11 @@ func (nft *NFTables) forwardInterfaceRules(c *nftables.Conn) error {
 	// accept
 	// --
 	// iifname "wg0" oifname "wg0" accept;
-	exprs = make([]expr.Any, 0, 10)
+	exprs := make([]expr.Any, 0, 10)
 	exprs = append(exprs, utils.SetIIF(nft.myIface)...)
 	exprs = append(exprs, utils.SetOIF(nft.myIface)...)
 	exprs = append(exprs, utils.ExprAccept())
-	rule = &nftables.Rule{
+	rule := &nftables.Rule{
 		Table: nft.tFilter,
 		Chain: nft.cForward,
 		Exprs: exprs,

@@ -30,7 +30,7 @@ func TestNFTables(t *testing.T) {
 		DefaultPolicy:    `accept`,
 		MyIface:          `docker0`,
 		MyPort:           0,
-		TablePrefix:      ``,
+		TablePrefix:      `test_`,
 		Ifaces:           []string{},
 		TrustPorts:       []uint16{22},
 		Applies:          []string{ApplyTypeDNS, ApplyTypeHTTP, ApplyTypeSMTP},
