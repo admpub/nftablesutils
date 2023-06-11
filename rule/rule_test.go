@@ -32,8 +32,7 @@ func TestAddRule(t *testing.T) {
 
 	c := testDialWithWant(t, want)
 
-	res, err := utils.CompareProtocolFamily(byte(nftables.TableFamilyIPv4))
-	assert.Nil(t, err)
+	res := utils.CompareProtocolFamily(nftables.TableFamilyIPv4)
 	rD := NewData([]byte{0xd, 0xe, 0xa, 0xd}, res)
 
 	// we only test the private add since we don't yet have a good way to test responses from netlink, only messages to netlink

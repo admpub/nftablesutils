@@ -104,17 +104,17 @@ func Init(
 		Hooknum:  nftables.ChainHookPostrouting,
 	}
 
-	filterSetTrustIP := &nftables.Set{
+	filterSetTrustIP := &nftables.Set{ // input / output IP whitelist
 		Name:    "trust_ipset",
 		Table:   tFilter,
 		KeyType: nftables.TypeIPAddr,
 	}
-	filterSetMyManagerIP := &nftables.Set{
+	filterSetMyManagerIP := &nftables.Set{ // input / output IP whitelist
 		Name:    "mymanager_ipset",
 		Table:   tFilter,
 		KeyType: nftables.TypeIPAddr,
 	}
-	filterSetMyForwardIP := &nftables.Set{
+	filterSetMyForwardIP := &nftables.Set{ // forward IP whitelist
 		Name:    "myforward_ipset",
 		Table:   tFilter,
 		KeyType: nftables.TypeIPAddr,
@@ -376,7 +376,7 @@ func (nft *NFTables) inputLocalIfaceRules(c *nftables.Conn) {
 	exprs = make([]expr.Any, 0, 6)
 	exprs = append(exprs, utils.SetNIIF(loIface)...)
 	exprs = append(exprs,
-		utils.SetSourceNet([]byte{127, 0, 0, 0}, []byte{255, 255, 255, 0})...)
+		utils.SetSourceIPv4Net([]byte{127, 0, 0, 0}, []byte{255, 255, 255, 0})...)
 	exprs = append(exprs, utils.ExprReject(
 		unix.NFT_REJECT_ICMP_UNREACH,
 		unix.NFT_REJECT_ICMPX_UNREACH,

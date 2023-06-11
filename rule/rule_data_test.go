@@ -10,9 +10,7 @@ import (
 )
 
 func TestNewRuleData(t *testing.T) {
-	res, err := utils.CompareProtocolFamily(byte(nftables.TableFamilyIPv4))
-	assert.Nil(t, err)
-
+	res := utils.CompareProtocolFamily(nftables.TableFamilyIPv4)
 	id := []byte{0xd, 0xe, 0xa, 0xd}
 
 	rD := NewData(id, res)

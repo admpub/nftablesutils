@@ -46,13 +46,27 @@ func SetNOIF(iface string) Exprs {
 	return exprs
 }
 
-// SetSourceNet helper.
-func SetSourceNet(addr []byte, mask []byte) Exprs {
+// SetSourceIPv4Net helper.
+func SetSourceIPv4Net(addr []byte, mask []byte) Exprs {
 	exprs := []expr.Any{
 		IPv4SourceAddress(defaultRegister),
 		ExprBitwise(defaultRegister, defaultRegister, IPv4AddrLen,
 			mask,
 			[]byte{0, 0, 0, 0},
+		),
+		ExprCmpEq(defaultRegister, addr),
+	}
+
+	return exprs
+}
+
+// SetSourceIPv6Net helper.
+func SetSourceIPv6Net(addr []byte, mask []byte) Exprs {
+	exprs := []expr.Any{
+		IPv6SourceAddress(defaultRegister),
+		ExprBitwise(defaultRegister, defaultRegister, IPv6AddrLen,
+			mask,
+			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		),
 		ExprCmpEq(defaultRegister, addr),
 	}

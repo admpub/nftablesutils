@@ -40,8 +40,8 @@ func TestNFTables(t *testing.T) {
 		target := rule.New(c.TableFilter(), c.ChainInput())
 		exp := utils.JoinExprs(
 			utils.SetProtoTCP(),
-			utils.SetDPort(3306),
-		).Add(utils.Accept())
+			utils.SetDPort(33306),
+		).Add(utils.ExprLimits(`10+/p/s`, 100), utils.Accept())
 		_, err := target.Add(conn, rule.NewData([]byte(`001`), exp))
 		if err != nil {
 			return err

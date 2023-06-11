@@ -7,34 +7,29 @@ import (
 	"github.com/google/nftables"
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
-	"golang.org/x/sys/unix"
 )
 
 // Returns a list of expressions that will compare the netfilter protocol family of traffic
-func CompareProtocolFamily(proto byte) ([]expr.Any, error) {
+func CompareProtocolFamily(proto nftables.TableFamily) []expr.Any {
 	return CompareProtocolFamilyWithRegister(proto, defaultRegister)
 }
 
 // Returns a list of expressions that will compare the protocol family of traffic, with a user defined register
-func CompareProtocolFamilyWithRegister(proto byte, reg uint32) ([]expr.Any, error) {
-	if int(proto) >= unix.NFPROTO_NUMPROTO {
-		return []expr.Any{}, fmt.Errorf("invalid protocol family %v", proto)
-	}
-
+func CompareProtocolFamilyWithRegister(proto nftables.TableFamily, reg uint32) []expr.Any {
 	out := []expr.Any{
 		ExprMeta(expr.MetaKeyNFPROTO, reg),
-		Equals([]byte{proto}, reg),
+		Equals([]byte{byte(proto)}, reg),
 	}
-	return out, nil
+	return out
 }
 
 // Returns a list of expressions that will compare the transport protocol of traffic
-func CompareTransportProtocol(proto byte) ([]expr.Any, error) {
+func CompareTransportProtocol(proto byte) []expr.Any {
 	return CompareTransportProtocolWithRegister(proto, defaultRegister)
 }
 
 // Returns a list of expressions that will compare the transport protocol of traffic, with a user defined register
-func CompareTransportProtocolWithRegister(proto byte, reg uint32) ([]expr.Any, error) {
+func CompareTransportProtocolWithRegister(proto byte, reg uint32) []expr.Any {
 	// it seems like netlink and/or nftables assume proto is unint8 but it can be larger
 	// https://elixir.bootlin.com/linux/latest/source/include/uapi/linux/in.h#L83
 	// we use byte here to work around this and support everything but MPTCP
@@ -44,7 +39,7 @@ func CompareTransportProtocolWithRegister(proto byte, reg uint32) ([]expr.Any, e
 	return []expr.Any{
 		ExprMeta(expr.MetaKeyL4PROTO, reg),
 		Equals([]byte{proto}, reg),
-	}, nil
+	}
 }
 
 // Returns a list of expressions that will compare the source port of traffic

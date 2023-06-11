@@ -37,8 +37,32 @@ func (r *RuleTarget) Add(c *nftables.Conn, ruleData RuleData) (bool, error) {
 	return true, nil
 }
 
+func (r *RuleTarget) Insert(c *nftables.Conn, ruleData RuleData) (bool, error) {
+	exists, err := r.Exists(c, ruleData)
+	if err != nil {
+		return false, err
+	}
+
+	if exists {
+		return false, nil
+	}
+
+	insert(c, r.table, r.chain, ruleData)
+	return true, nil
+}
+
 func add(c *nftables.Conn, table *nftables.Table, chain *nftables.Chain, ruleData RuleData) {
 	c.AddRule(&nftables.Rule{
+		Table:    table,
+		Chain:    chain,
+		Exprs:    ruleData.Exprs,
+		UserData: ruleData.ID,
+		Handle:   ruleData.Handle,
+	})
+}
+
+func insert(c *nftables.Conn, table *nftables.Table, chain *nftables.Chain, ruleData RuleData) {
+	c.InsertRule(&nftables.Rule{
 		Table:    table,
 		Chain:    chain,
 		Exprs:    ruleData.Exprs,
