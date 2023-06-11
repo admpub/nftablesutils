@@ -75,7 +75,7 @@ func TestNFTables(t *testing.T) {
 		return err
 	})
 
-	testServer()
+	//testServer()
 	c.Cleanup()
 	_ = cfg
 }

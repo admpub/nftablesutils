@@ -1,6 +1,9 @@
 package nftablesutils
 
 import (
+	"net"
+	"net/netip"
+
 	"github.com/google/nftables"
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
@@ -46,31 +49,65 @@ func SetNOIF(iface string) Exprs {
 	return exprs
 }
 
+// SetCIDRMatcher generates nftables expressions that matches a CIDR
+// SetCIDRMatcher(ExprDirectionSource, `127.0.0.0/24`)
+func SetCIDRMatcher(direction ExprDirection, cidr string, isINet bool) []expr.Any {
+	ip, network, _ := net.ParseCIDR(cidr)
+	ipToAdd, _ := netip.AddrFromSlice(ip)
+	add := ipToAdd.Unmap()
+
+	offSet, packetLen, zeroXor := GetPayloadDirectives(direction, add.Is4(), add.Is6())
+
+	exprs := make([]expr.Any, 0, 5)
+	if isINet {
+		var family nftables.TableFamily
+		if add.Is4() {
+			family = nftables.TableFamilyIPv4
+		} else {
+			family = nftables.TableFamilyIPv6
+		}
+		exprs = append(exprs, CompareProtocolFamily(family)...)
+	}
+
+	exprs = append(
+		exprs,
+		// fetch src add
+		&expr.Payload{
+			DestRegister: defaultRegister,
+			Base:         expr.PayloadBaseNetworkHeader,
+			Offset:       offSet,
+			Len:          packetLen,
+		},
+		// net mask
+		&expr.Bitwise{
+			DestRegister:   defaultRegister,
+			SourceRegister: defaultRegister,
+			Len:            packetLen,
+			Mask:           network.Mask,
+			Xor:            zeroXor,
+		},
+		// net address
+		&expr.Cmp{
+			Op:       expr.CmpOpEq,
+			Register: defaultRegister,
+			Data:     add.AsSlice(),
+		},
+	)
+	return exprs
+}
+
 // SetSourceIPv4Net helper.
 func SetSourceIPv4Net(addr []byte, mask []byte) Exprs {
 	exprs := []expr.Any{
 		IPv4SourceAddress(defaultRegister),
-		ExprBitwise(defaultRegister, defaultRegister, IPv4AddrLen,
-			mask,
-			[]byte{0, 0, 0, 0},
-		),
-		ExprCmpEq(defaultRegister, addr),
 	}
-
-	return exprs
-}
-
-// SetSourceIPv6Net helper.
-func SetSourceIPv6Net(addr []byte, mask []byte) Exprs {
-	exprs := []expr.Any{
-		IPv6SourceAddress(defaultRegister),
-		ExprBitwise(defaultRegister, defaultRegister, IPv6AddrLen,
+	if len(mask) > 0 {
+		exprs = append(exprs, ExprBitwise(defaultRegister, defaultRegister, IPv4AddrLen,
 			mask,
-			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		),
-		ExprCmpEq(defaultRegister, addr),
+			net.IPv4zero,
+		))
 	}
-
+	exprs = append(exprs, ExprCmpEq(defaultRegister, addr))
 	return exprs
 }
 

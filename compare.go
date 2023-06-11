@@ -179,13 +179,13 @@ func CompareSourcePortSetWithRegister(set *nftables.Set, reg uint32) ([]expr.Any
 }
 
 // Returns a list of expressions that will compare the destination port of traffic against a set
-func CompareDestinationPortSet(set *nftables.Set) ([]expr.Any, error) {
+func CompareDestinationPortSet(set *nftables.Set) []expr.Any {
 	return CompareDestinationPortSetWithRegister(set, defaultRegister)
 }
 
 // Returns a list of expressions that will compare the destination port of traffic against a set, with a user defined register
-func CompareDestinationPortSetWithRegister(set *nftables.Set, reg uint32) ([]expr.Any, error) {
-	return []expr.Any{DestinationPort(reg), PortSetLookUp(set, reg)}, nil
+func CompareDestinationPortSetWithRegister(set *nftables.Set, reg uint32) []expr.Any {
+	return []expr.Any{DestinationPort(reg), PortSetLookUp(set, reg)}
 }
 
 func BitwiseWithRegisters(sourceRegister uint32, destRegister uint32, length uint32, mask []byte, xor []byte) *expr.Bitwise {

@@ -2,8 +2,10 @@ package nftablesutils
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/google/nftables"
+	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
 	"github.com/google/nftables/xt"
 )
@@ -19,14 +21,14 @@ const (
 const (
 	IPv4SrcOffset = 12
 	IPv4DstOffset = 16
-	IPv4AddrLen   = 4
+	IPv4AddrLen   = net.IPv4len
 )
 
 // IPv6 lengths and offsets
 const (
-	IPv6SrcOffest = 8
+	IPv6SrcOffset = 8
 	IPv6DstOffset = 24
-	IPv6AddrLen   = 16
+	IPv6AddrLen   = net.IPv6len
 )
 
 const (
@@ -54,6 +56,34 @@ const (
 	bpfRevision     = 1
 )
 
+type ExprDirection string
+
+const (
+	ExprDirectionSource      ExprDirection = `source`
+	ExprDirectionDestination ExprDirection = `destination`
+)
+
+var (
+	zeroXor  = binaryutil.NativeEndian.PutUint32(0)
+	zeroXor6 = append(binaryutil.NativeEndian.PutUint64(0), binaryutil.NativeEndian.PutUint64(0)...)
+)
+
+// GetPayloadDirectives get expression directives based on ip version and direction
+func GetPayloadDirectives(direction ExprDirection, isIPv4 bool, isIPv6 bool) (uint32, uint32, []byte) {
+	switch {
+	case direction == ExprDirectionSource && isIPv4:
+		return IPv4SrcOffset, IPv4AddrLen, zeroXor
+	case direction == ExprDirectionDestination && isIPv4:
+		return IPv4DstOffset, IPv4AddrLen, zeroXor
+	case direction == ExprDirectionSource && isIPv6:
+		return IPv6SrcOffset, IPv6AddrLen, zeroXor6
+	case direction == ExprDirectionDestination && isIPv6:
+		return IPv6DstOffset, IPv6AddrLen, zeroXor6
+	default:
+		panic("no matched payload directive")
+	}
+}
+
 // Returns a source port payload expression
 func SourcePort(reg uint32) *expr.Payload {
 	return ExprPayloadTransportHeader(reg, SrcPortOffset, PortLen)
@@ -71,7 +101,7 @@ func IPv4SourceAddress(reg uint32) *expr.Payload {
 
 // Returns a IPv6 source address payload expression
 func IPv6SourceAddress(reg uint32) *expr.Payload {
-	return ExprPayloadNetHeader(reg, IPv6SrcOffest, IPv6AddrLen)
+	return ExprPayloadNetHeader(reg, IPv6SrcOffset, IPv6AddrLen)
 }
 
 // Returns a IPv4 destination address payload expression
