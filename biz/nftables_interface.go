@@ -20,7 +20,12 @@ func (nft *NFTables) forwardInterfaceRules(c *nftables.Conn) error {
 	// iifname "wg0" oifname "eth0" accept;
 	exprs := make([]expr.Any, 0, 10)
 	exprs = append(exprs, utils.SetIIF(nft.myIface)...)
-	exprs = append(exprs, utils.SetSAddrSet(nft.filterSetMyForwardIP)...)
+	switch nft.tableFamily {
+	case nftables.TableFamilyIPv4:
+		exprs = append(exprs, utils.SetSAddrSet(nft.filterSetMyForwardIP)...)
+	case nftables.TableFamilyIPv6:
+		exprs = append(exprs, utils.SetSAddrIPv6Set(nft.filterSetMyForwardIP)...)
+	}
 	exprs = append(exprs, utils.SetOIF(nft.wanIface)...)
 	exprs = append(exprs, utils.ExprAccept())
 	rule := &nftables.Rule{
@@ -43,7 +48,12 @@ func (nft *NFTables) forwardInterfaceRules(c *nftables.Conn) error {
 
 	exprs = make([]expr.Any, 0, 10)
 	exprs = append(exprs, utils.SetIIF(nft.wanIface)...)
-	exprs = append(exprs, utils.SetDAddrSet(nft.filterSetMyForwardIP)...)
+	switch nft.tableFamily {
+	case nftables.TableFamilyIPv4:
+		exprs = append(exprs, utils.SetDAddrSet(nft.filterSetMyForwardIP)...)
+	case nftables.TableFamilyIPv6:
+		exprs = append(exprs, utils.SetDAddrIPv6Set(nft.filterSetMyForwardIP)...)
+	}
 	exprs = append(exprs, utils.SetOIF(nft.myIface)...)
 	exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
 	exprs = append(exprs, utils.ExprAccept())
@@ -85,7 +95,12 @@ func (nft *NFTables) natInterfaceRules(c *nftables.Conn) error {
 	exprs := make([]expr.Any, 0, 10)
 	exprs = append(exprs, utils.SetOIF(nft.wanIface)...)
 	exprs = append(exprs, utils.ExprImmediate(nft.wanIP))
-	exprs = append(exprs, utils.ExprSNAT(1, 0))
+	switch nft.tNAT.Family {
+	case nftables.TableFamilyIPv4:
+		exprs = append(exprs, utils.ExprSNAT(1, 0))
+	case nftables.TableFamilyIPv6:
+		exprs = append(exprs, utils.ExprSNATv6(1, 0))
+	}
 	rule := &nftables.Rule{
 		Table: nft.tNAT,
 		Chain: nft.cPostrouting,

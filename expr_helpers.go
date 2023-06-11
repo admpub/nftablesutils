@@ -158,7 +158,7 @@ func SetICMPTypeEchoRequest() Exprs {
 // SetProtoUDP helper.
 func SetProtoUDP() Exprs {
 	exprs := []expr.Any{
-		ProtoUDP(defaultRegister),
+		ExprMeta(expr.MetaKeyL4PROTO, defaultRegister),
 		ExprCmpEq(defaultRegister, TypeProtoUDP()),
 	}
 
@@ -168,7 +168,7 @@ func SetProtoUDP() Exprs {
 // SetProtoTCP helper.
 func SetProtoTCP() Exprs {
 	exprs := []expr.Any{
-		ProtoTCP(defaultRegister),
+		ExprMeta(expr.MetaKeyL4PROTO, defaultRegister),
 		ExprCmpEq(defaultRegister, TypeProtoTCP()),
 	}
 
@@ -195,6 +195,26 @@ func SetDAddrSet(s *nftables.Set) Exprs {
 	return exprs
 }
 
+// SetSAddrIPv6Set helper.
+func SetSAddrIPv6Set(s *nftables.Set) Exprs {
+	exprs := []expr.Any{
+		IPv6SourceAddress(defaultRegister),
+		ExprLookupSet(defaultRegister, s.Name, s.ID),
+	}
+
+	return exprs
+}
+
+// SetDAddrIPv6Set helper.
+func SetDAddrIPv6Set(s *nftables.Set) Exprs {
+	exprs := []expr.Any{
+		IPv6DestinationAddress(defaultRegister),
+		ExprLookupSet(defaultRegister, s.Name, s.ID),
+	}
+
+	return exprs
+}
+
 // GetAddrSet helper.
 func GetAddrSet(t *nftables.Table) *nftables.Set {
 	s := &nftables.Set{
@@ -202,6 +222,18 @@ func GetAddrSet(t *nftables.Table) *nftables.Set {
 		Constant:  true,
 		Table:     t,
 		KeyType:   nftables.TypeIPAddr,
+	}
+
+	return s
+}
+
+// GetAddrSet helper.
+func GetAddrIPv6Set(t *nftables.Table) *nftables.Set {
+	s := &nftables.Set{
+		Anonymous: true,
+		Constant:  true,
+		Table:     t,
+		KeyType:   nftables.TypeIP6Addr,
 	}
 
 	return s

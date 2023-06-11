@@ -154,6 +154,17 @@ func ExprSNAT(addrMin, addrMax uint32) *expr.NAT {
 	}
 }
 
+// ExprSNATv6 wrapper
+func ExprSNATv6(addrMin, addrMax uint32) *expr.NAT {
+	// [ nat snat ip addr_min reg 1 addr_max reg 0 ]
+	return &expr.NAT{
+		Type:       expr.NATTypeSourceNAT,
+		Family:     uint32(nftables.TableFamilyIPv6),
+		RegAddrMin: addrMin,
+		RegAddrMax: addrMax,
+	}
+}
+
 // ExprAccept wrapper
 func ExprAccept() *expr.Verdict {
 	// [ immediate reg 0 accept ]

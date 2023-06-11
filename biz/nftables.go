@@ -18,9 +18,18 @@ const loIface = "lo"
 
 var _ INFTables = &NFTables{}
 
+func New(tableFamily nftables.TableFamily, c Config, managerPorts []uint16) *NFTables {
+	return &NFTables{
+		tableFamily:  tableFamily,
+		cfg:          c,
+		managerPorts: managerPorts,
+	}
+}
+
 // NFTables struct.
 type NFTables struct {
-	cfg Config
+	cfg         Config
+	tableFamily nftables.TableFamily
 
 	originNetNS netns.NsHandle
 	targetNetNS netns.NsHandle
@@ -48,14 +57,15 @@ type NFTables struct {
 }
 
 // Init nftables firewall.
-func Init(
-	cfg Config,
-	managerPorts []uint16,
-) (*NFTables, error) {
+func (nft *NFTables) Init() error {
+	if nft.tableFamily == 0 {
+		nft.tableFamily = nftables.TableFamilyIPv4
+	}
+	cfg := nft.cfg
 	// obtain default interface name, ip address and gateway ip address
 	wanIface, _, wanIP, err := utils.IPAddr()
 	if err != nil {
-		return nil, fmt.Errorf(`failed to obtain default interface name: %w`, err)
+		err = fmt.Errorf(`failed to obtain default interface name: %w`, err)
 	}
 
 	defaultPolicy := nftables.ChainPolicyDrop
@@ -64,7 +74,7 @@ func Init(
 	}
 
 	tFilter := &nftables.Table{
-		Family: nftables.TableFamilyIPv4,
+		Family: nft.tableFamily,
 		Name:   cfg.TablePrefix + "filter",
 	}
 	cInput := &nftables.Chain{
@@ -93,7 +103,7 @@ func Init(
 	}
 
 	tNAT := &nftables.Table{
-		Family: nftables.TableFamilyIPv4,
+		Family: nft.tableFamily,
 		Name:   cfg.TablePrefix + "nat",
 	}
 	cPostrouting := &nftables.Chain{
@@ -120,35 +130,27 @@ func Init(
 		KeyType: nftables.TypeIPAddr,
 	}
 
-	nft := &NFTables{
-		cfg: cfg,
+	nft.wanIface = wanIface
+	nft.wanIP = wanIP
+	nft.myIface = cfg.MyIface
+	nft.myPort = cfg.MyPort
 
-		wanIface: wanIface,
-		wanIP:    wanIP,
-		myIface:  cfg.MyIface,
-		myPort:   cfg.MyPort,
+	nft.tFilter = tFilter
+	nft.cInput = cInput
+	nft.cForward = cForward
+	nft.cOutput = cOutput
 
-		tFilter:  tFilter,
-		cInput:   cInput,
-		cForward: cForward,
-		cOutput:  cOutput,
+	nft.tNAT = tNAT
+	nft.cPostrouting = cPostrouting
 
-		tNAT:         tNAT,
-		cPostrouting: cPostrouting,
+	nft.filterSetTrustIP = filterSetTrustIP
+	nft.filterSetMyManagerIP = filterSetMyManagerIP
+	nft.filterSetMyForwardIP = filterSetMyForwardIP
+	return err
+}
 
-		filterSetTrustIP:     filterSetTrustIP,
-		filterSetMyManagerIP: filterSetMyManagerIP,
-		filterSetMyForwardIP: filterSetMyForwardIP,
-
-		managerPorts: managerPorts,
-	}
-
-	err = nft.apply()
-	if err != nil {
-		return nil, err
-	}
-
-	return nft, nil
+func (nft *NFTables) ApplyDefault() error {
+	return nft.apply()
 }
 
 // networkNamespaceBind target by name.
@@ -378,7 +380,13 @@ func (nft *NFTables) inputLocalIfaceRules(c *nftables.Conn) {
 	// iifname != "lo" ip saddr 127.0.0.0/8 reject with icmp type prot-unreachable
 	exprs = make([]expr.Any, 0, 6)
 	exprs = append(exprs, utils.SetNIIF(loIface)...)
-	exprs = append(exprs, utils.SetSourceIPv4Net([]byte{127, 0, 0, 0}, []byte{255, 255, 255, 0})...)
+
+	switch nft.tableFamily {
+	case nftables.TableFamilyIPv4:
+		exprs = append(exprs, utils.SetSourceIPv4Net([]byte{127, 0, 0, 0}, []byte{255, 255, 255, 0})...)
+	case nftables.TableFamilyIPv6:
+		exprs = append(exprs, utils.SetCIDRMatcher(utils.ExprDirectionSource, `fe80::/10`, false)...)
+	}
 	exprs = append(exprs, utils.ExprReject(
 		unix.NFT_REJECT_ICMP_UNREACH,
 		unix.NFT_REJECT_ICMPX_UNREACH,
@@ -422,7 +430,12 @@ func (nft *NFTables) inputHostBaseRules(c *nftables.Conn, iface string) error {
 
 	exprs := make([]expr.Any, 0, 7)
 	exprs = append(exprs, utils.SetIIF(iface)...)
-	exprs = append(exprs, utils.SetProtoICMP()...)
+	switch nft.tableFamily {
+	case nftables.TableFamilyIPv4:
+		exprs = append(exprs, utils.SetProtoICMP()...)
+	case nftables.TableFamilyIPv6:
+		exprs = append(exprs, utils.SetProtoICMPv6()...)
+	}
 	exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
 	exprs = append(exprs, utils.ExprAccept())
 
@@ -460,7 +473,12 @@ func (nft *NFTables) outputHostBaseRules(c *nftables.Conn, iface string) error {
 
 	exprs := make([]expr.Any, 0, 7)
 	exprs = append(exprs, utils.SetOIF(iface)...)
-	exprs = append(exprs, utils.SetProtoICMP()...)
+	switch nft.tableFamily {
+	case nftables.TableFamilyIPv4:
+		exprs = append(exprs, utils.SetProtoICMP()...)
+	case nftables.TableFamilyIPv6:
+		exprs = append(exprs, utils.SetProtoICMPv6()...)
+	}
 	exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
 	exprs = append(exprs, utils.ExprAccept())
 
@@ -494,9 +512,19 @@ func (nft *NFTables) inputTrustIPSetRules(c *nftables.Conn, iface string) error 
 	// iifname "eth0" icmp type echo-request ip saddr @trust_ipset ct state new accept
 	exprs := make([]expr.Any, 0, 12)
 	exprs = append(exprs, utils.SetIIF(iface)...)
-	exprs = append(exprs, utils.SetProtoICMP()...)
+	switch nft.tableFamily {
+	case nftables.TableFamilyIPv4:
+		exprs = append(exprs, utils.SetProtoICMP()...)
+	case nftables.TableFamilyIPv6:
+		exprs = append(exprs, utils.SetProtoICMPv6()...)
+	}
 	exprs = append(exprs, utils.SetICMPTypeEchoRequest()...)
-	exprs = append(exprs, utils.SetSAddrSet(nft.filterSetTrustIP)...)
+	switch nft.tableFamily {
+	case nftables.TableFamilyIPv4:
+		exprs = append(exprs, utils.SetSAddrSet(nft.filterSetTrustIP)...)
+	case nftables.TableFamilyIPv6:
+		exprs = append(exprs, utils.SetSAddrIPv6Set(nft.filterSetTrustIP)...)
+	}
 	exprs = append(exprs, utils.SetConntrackStateNew()...)
 	exprs = append(exprs, utils.ExprAccept())
 	rule := &nftables.Rule{
@@ -528,7 +556,12 @@ func (nft *NFTables) inputTrustIPSetRules(c *nftables.Conn, iface string) error 
 	exprs = append(exprs, utils.SetIIF(iface)...)
 	exprs = append(exprs, utils.SetProtoTCP()...)
 	exprs = append(exprs, utils.SetDPortSet(portSet)...)
-	exprs = append(exprs, utils.SetSAddrSet(nft.filterSetTrustIP)...)
+	switch nft.tableFamily {
+	case nftables.TableFamilyIPv4:
+		exprs = append(exprs, utils.SetSAddrSet(nft.filterSetTrustIP)...)
+	case nftables.TableFamilyIPv6:
+		exprs = append(exprs, utils.SetSAddrIPv6Set(nft.filterSetTrustIP)...)
+	}
 	exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
 	exprs = append(exprs, utils.ExprAccept())
 	rule = &nftables.Rule{
@@ -558,7 +591,12 @@ func (nft *NFTables) outputTrustIPSetRules(c *nftables.Conn, iface string) error
 	exprs = append(exprs, utils.SetOIF(iface)...)
 	exprs = append(exprs, utils.SetProtoTCP()...)
 	exprs = append(exprs, utils.SetSPortSet(portSet)...)
-	exprs = append(exprs, utils.SetDAddrSet(nft.filterSetTrustIP)...)
+	switch nft.tableFamily {
+	case nftables.TableFamilyIPv4:
+		exprs = append(exprs, utils.SetDAddrSet(nft.filterSetTrustIP)...)
+	case nftables.TableFamilyIPv6:
+		exprs = append(exprs, utils.SetDAddrIPv6Set(nft.filterSetTrustIP)...)
+	}
 	exprs = append(exprs, utils.SetConntrackStateEstablished()...)
 	exprs = append(exprs, utils.ExprAccept())
 	rule := &nftables.Rule{
@@ -632,7 +670,12 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	// iifname "wg0" icmp type echo-request ct state new accept
 	exprs := make([]expr.Any, 0, 12)
 	exprs = append(exprs, utils.SetIIF(nft.myIface)...)
-	exprs = append(exprs, utils.SetProtoICMP()...)
+	switch nft.tableFamily {
+	case nftables.TableFamilyIPv4:
+		exprs = append(exprs, utils.SetProtoICMP()...)
+	case nftables.TableFamilyIPv6:
+		exprs = append(exprs, utils.SetProtoICMPv6()...)
+	}
 	exprs = append(exprs, utils.SetICMPTypeEchoRequest()...)
 	exprs = append(exprs, utils.SetConntrackStateNew()...)
 	exprs = append(exprs, utils.ExprAccept())
@@ -656,7 +699,12 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 
 	exprs = make([]expr.Any, 0, 7)
 	exprs = append(exprs, utils.SetIIF(nft.myIface)...)
-	exprs = append(exprs, utils.SetProtoICMP()...)
+	switch nft.tableFamily {
+	case nftables.TableFamilyIPv4:
+		exprs = append(exprs, utils.SetProtoICMP()...)
+	case nftables.TableFamilyIPv6:
+		exprs = append(exprs, utils.SetProtoICMPv6()...)
+	}
 	exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
 	exprs = append(exprs, utils.ExprAccept())
 
@@ -693,7 +741,12 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	exprs = append(exprs, utils.SetIIF(nft.myIface)...)
 	exprs = append(exprs, utils.SetProtoTCP()...)
 	exprs = append(exprs, utils.SetDPortSet(portSet)...)
-	exprs = append(exprs, utils.SetSAddrSet(nft.filterSetMyManagerIP)...)
+	switch nft.tableFamily {
+	case nftables.TableFamilyIPv4:
+		exprs = append(exprs, utils.SetSAddrSet(nft.filterSetMyManagerIP)...)
+	case nftables.TableFamilyIPv6:
+		exprs = append(exprs, utils.SetSAddrIPv6Set(nft.filterSetMyManagerIP)...)
+	}
 	exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
 	exprs = append(exprs, utils.ExprAccept())
 	rule = &nftables.Rule{
@@ -716,7 +769,12 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 
 	exprs = make([]expr.Any, 0, 7)
 	exprs = append(exprs, utils.SetOIF(nft.myIface)...)
-	exprs = append(exprs, utils.SetProtoICMP()...)
+	switch nft.tableFamily {
+	case nftables.TableFamilyIPv4:
+		exprs = append(exprs, utils.SetProtoICMP()...)
+	case nftables.TableFamilyIPv6:
+		exprs = append(exprs, utils.SetProtoICMPv6()...)
+	}
 	exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
 	exprs = append(exprs, utils.ExprAccept())
 
@@ -746,7 +804,12 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	exprs = append(exprs, utils.SetOIF(nft.myIface)...)
 	exprs = append(exprs, utils.SetProtoTCP()...)
 	exprs = append(exprs, utils.SetSPortSet(portSet)...)
-	exprs = append(exprs, utils.SetDAddrSet(nft.filterSetMyManagerIP)...)
+	switch nft.tableFamily {
+	case nftables.TableFamilyIPv4:
+		exprs = append(exprs, utils.SetDAddrSet(nft.filterSetMyManagerIP)...)
+	case nftables.TableFamilyIPv6:
+		exprs = append(exprs, utils.SetDAddrIPv6Set(nft.filterSetMyManagerIP)...)
+	}
 	exprs = append(exprs, utils.SetConntrackStateEstablished()...)
 	exprs = append(exprs, utils.ExprAccept())
 	rule = &nftables.Rule{

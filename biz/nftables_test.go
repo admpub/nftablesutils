@@ -30,10 +30,14 @@ func TestNFTables(t *testing.T) {
 		DefaultPolicy:    `accept`,
 		MyIface:          `docker0`,
 		MyPort:           0,
+		TablePrefix:      ``,
 		Ifaces:           []string{},
 		TrustPorts:       []uint16{22},
+		Applies:          []string{ApplyTypeDNS, ApplyTypeHTTP, ApplyTypeSMTP},
 	}
-	c, err := Init(cfg, []uint16{8080})
+	c := New(nftables.TableFamilyIPv4, cfg, []uint16{8080})
+	c.Init()
+	err = c.ApplyDefault()
 	assert.NoError(t, err)
 
 	c.Do(func(conn *nftables.Conn) error {
