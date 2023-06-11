@@ -7,7 +7,6 @@ import (
 	"github.com/google/nftables"
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
-	"github.com/google/nftables/xt"
 )
 
 // Transport protocol lengths and offsets
@@ -48,6 +47,11 @@ const (
 const (
 	ProtoICMPOffset = 9
 	ProtoICMPLen    = 1
+)
+
+const (
+	ProtoICMPv6Offset = 6
+	ProtoICMPv6Len    = 1
 )
 
 // Default register and default xt_bpf version
@@ -130,54 +134,6 @@ func PortSetLookUp(set *nftables.Set, reg uint32) *expr.Lookup {
 // Returns an IP set lookup expression
 func IPSetLookUp(set *nftables.Set, reg uint32) *expr.Lookup {
 	return ExprLookupSet(reg, set.Name, set.ID)
-}
-
-// Returns an equal comparison expression
-func Equals(data []byte, reg uint32) *expr.Cmp {
-	return ExprCmpEq(reg, data)
-}
-
-// Returns a not-equal comparison expression
-func NotEquals(data []byte, reg uint32) *expr.Cmp {
-	return ExprCmpNeq(reg, data)
-}
-
-// Returns an accept verdict expression
-func Accept() *expr.Verdict {
-	return ExprAccept()
-}
-
-// Returns an drop verdict expression
-func Drop() *expr.Verdict {
-	return ExprDrop()
-}
-
-// Returns a xtables match expression
-func Match(name string, revision uint32, info xt.InfoAny) *expr.Match {
-	return &expr.Match{
-		Name: name,
-		Rev:  revision,
-		Info: info,
-	}
-}
-
-// Returns a xtables match expression of unknown type
-func MatchUnknown(name string, revision uint32, info []byte) *expr.Match {
-	infoBytes := xt.Unknown(info)
-	return Match(name, revision, &infoBytes)
-}
-
-// Returns a xtables match bpf expression
-func MatchBPF(info []byte) *expr.Match {
-	return MatchUnknown("bpf", bpfRevision, info)
-}
-
-// Returns a xtables match bpf expression with a verdict
-func MatchBPFWithVerdict(info []byte, verdict *expr.Verdict) []expr.Any {
-	return []expr.Any{
-		MatchBPF(info),
-		verdict,
-	}
 }
 
 func LoadCtByKeyWithRegister(ctKey expr.CtKey, reg uint32) (*expr.Ct, error) {

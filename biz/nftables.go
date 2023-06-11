@@ -163,7 +163,7 @@ func (nft *NFTables) networkNamespaceBind() (*nftables.Conn, error) {
 	origin, err := netns.Get()
 	if err != nil {
 		nft.networkNamespaceRelease()
-		return nil, err
+		return nil, fmt.Errorf(`failed to netns.Get: %w`, err)
 	}
 
 	nft.originNetNS = origin
@@ -218,7 +218,7 @@ func (nft *NFTables) apply() error {
 	// bind network namespace if it was set in config
 	c, err := nft.networkNamespaceBind()
 	if err != nil {
-		return err
+		return fmt.Errorf(`nft.networkNamespaceBind: %w`, err)
 	}
 
 	// release network namespace finally
@@ -265,7 +265,7 @@ func (nft *NFTables) apply() error {
 	// }
 	err = c.AddSet(nft.filterSetTrustIP, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf(`nft.AddSet(%q): %w`, nft.filterSetTrustIP.Name, err)
 	}
 
 	// add mymanager_ipset
@@ -276,7 +276,7 @@ func (nft *NFTables) apply() error {
 	// }
 	err = c.AddSet(nft.filterSetMyManagerIP, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf(`nft.AddSet(%q): %w`, nft.filterSetMyManagerIP.Name, err)
 	}
 
 	// add myforward_ipset
@@ -287,7 +287,7 @@ func (nft *NFTables) apply() error {
 	// }
 	err = c.AddSet(nft.filterSetMyForwardIP, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf(`nft.AddSet(%q): %w`, nft.filterSetMyForwardIP.Name, err)
 	}
 
 	//
@@ -301,11 +301,11 @@ func (nft *NFTables) apply() error {
 	}
 	err = nft.sdnRules(c)
 	if err != nil {
-		return err
+		return fmt.Errorf(`nft.sdnRules: %w`, err)
 	}
 	err = nft.sdnForwardRules(c)
 	if err != nil {
-		return err
+		return fmt.Errorf(`nft.sdnForwardRules: %w`, err)
 	}
 	nft.natRules(c)
 
@@ -332,25 +332,28 @@ func (nft *NFTables) apply() error {
 func (nft *NFTables) applyCommonRules(c *nftables.Conn, iface string) error {
 	err := nft.inputHostBaseRules(c, nft.wanIface)
 	if err != nil {
-		return err
+		return fmt.Errorf(`nft.inputHostBaseRules(%q): %w`, nft.wanIface, err)
 	}
 	err = nft.outputHostBaseRules(c, nft.wanIface)
 	if err != nil {
-		return err
+		return fmt.Errorf(`nft.outputHostBaseRules(%q): %w`, nft.wanIface, err)
 	}
 	err = nft.inputTrustIPSetRules(c, nft.wanIface)
 	if err != nil {
-		return err
+		return fmt.Errorf(`nft.inputTrustIPSetRules(%q): %w`, nft.wanIface, err)
 	}
 	err = nft.outputTrustIPSetRules(c, nft.wanIface)
 	if err != nil {
-		return err
+		return fmt.Errorf(`nft.outputTrustIPSetRules(%q): %w`, nft.wanIface, err)
 	}
 	err = nft.inputPublicRules(c, nft.wanIface)
 	if err != nil {
-		return err
+		return fmt.Errorf(`nft.inputPublicRules(%q): %w`, nft.wanIface, err)
 	}
 	err = nft.outputPublicRules(c, nft.wanIface)
+	if err != nil {
+		err = fmt.Errorf(`nft.outputPublicRules(%q): %w`, nft.wanIface, err)
+	}
 	return err
 }
 
@@ -375,8 +378,7 @@ func (nft *NFTables) inputLocalIfaceRules(c *nftables.Conn) {
 	// iifname != "lo" ip saddr 127.0.0.0/8 reject with icmp type prot-unreachable
 	exprs = make([]expr.Any, 0, 6)
 	exprs = append(exprs, utils.SetNIIF(loIface)...)
-	exprs = append(exprs,
-		utils.SetSourceIPv4Net([]byte{127, 0, 0, 0}, []byte{255, 255, 255, 0})...)
+	exprs = append(exprs, utils.SetSourceIPv4Net([]byte{127, 0, 0, 0}, []byte{255, 255, 255, 0})...)
 	exprs = append(exprs, utils.ExprReject(
 		unix.NFT_REJECT_ICMP_UNREACH,
 		unix.NFT_REJECT_ICMPX_UNREACH,

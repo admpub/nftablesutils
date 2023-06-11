@@ -53,15 +53,15 @@ func SetNOIF(iface string) Exprs {
 // SetCIDRMatcher(ExprDirectionSource, `127.0.0.0/24`)
 func SetCIDRMatcher(direction ExprDirection, cidr string, isINet bool) []expr.Any {
 	ip, network, _ := net.ParseCIDR(cidr)
-	ipToAdd, _ := netip.AddrFromSlice(ip)
-	add := ipToAdd.Unmap()
+	ipToAddr, _ := netip.AddrFromSlice(ip)
+	addr := ipToAddr.Unmap()
 
-	offSet, packetLen, zeroXor := GetPayloadDirectives(direction, add.Is4(), add.Is6())
+	offSet, packetLen, zeroXor := GetPayloadDirectives(direction, addr.Is4(), addr.Is6())
 
 	exprs := make([]expr.Any, 0, 5)
 	if isINet {
 		var family nftables.TableFamily
-		if add.Is4() {
+		if addr.Is4() {
 			family = nftables.TableFamilyIPv4
 		} else {
 			family = nftables.TableFamilyIPv6
@@ -90,7 +90,7 @@ func SetCIDRMatcher(direction ExprDirection, cidr string, isINet bool) []expr.An
 		&expr.Cmp{
 			Op:       expr.CmpOpEq,
 			Register: defaultRegister,
-			Data:     add.AsSlice(),
+			Data:     addr.AsSlice(),
 		},
 	)
 	return exprs
@@ -100,14 +100,12 @@ func SetCIDRMatcher(direction ExprDirection, cidr string, isINet bool) []expr.An
 func SetSourceIPv4Net(addr []byte, mask []byte) Exprs {
 	exprs := []expr.Any{
 		IPv4SourceAddress(defaultRegister),
-	}
-	if len(mask) > 0 {
-		exprs = append(exprs, ExprBitwise(defaultRegister, defaultRegister, IPv4AddrLen,
+		ExprBitwise(defaultRegister, defaultRegister, IPv4AddrLen,
 			mask,
-			net.IPv4zero,
-		))
+			make([]byte, IPv4AddrLen),
+		),
+		ExprCmpEq(defaultRegister, addr),
 	}
-	exprs = append(exprs, ExprCmpEq(defaultRegister, addr))
 	return exprs
 }
 
@@ -119,6 +117,32 @@ func SetProtoICMP() Exprs {
 	}
 
 	return exprs
+}
+
+func SetProtoICMPv6() Exprs {
+	return []expr.Any{
+		// payload load 1b @ network header + 6 => reg 1
+		ExprPayloadNetHeader(defaultRegister, ProtoICMPv6Offset, ProtoICMPv6Len),
+		// cmp eq reg 1 0x0000003a
+		ExprCmpEq(defaultRegister, TypeProtoICMPV6()),
+	}
+}
+
+// SetINetProtoICMP helper.
+func SetINetProtoICMP() Exprs {
+	exprs := []expr.Any{
+		ExprMeta(expr.MetaKeyL4PROTO, defaultRegister),
+		ExprCmpEq(defaultRegister, TypeProtoICMP()),
+	}
+
+	return exprs
+}
+
+func SetINetProtoICMPv6() Exprs {
+	return []expr.Any{
+		ExprMeta(expr.MetaKeyL4PROTO, defaultRegister),
+		ExprCmpEq(defaultRegister, TypeProtoICMPV6()),
+	}
 }
 
 // SetICMPTypeEchoRequest helper.
@@ -221,6 +245,33 @@ func SetDPortSet(s *nftables.Set) Exprs {
 	}
 
 	return exprs
+}
+
+// SetPortCmp returns a new port expression with the given matching operator.
+func SetPortCmp(port uint16, op expr.CmpOp) []expr.Any {
+	return []expr.Any{
+		&expr.Cmp{
+			Register: defaultRegister,
+			Op:       op,
+			Data:     binaryutil.BigEndian.PutUint16(port),
+		},
+	}
+}
+
+// SetPortRange returns a new port range expression.
+func SetPortRange(min uint16, max uint16) []expr.Any {
+	return []expr.Any{
+		&expr.Cmp{
+			Register: defaultRegister,
+			Op:       expr.CmpOpGte,
+			Data:     binaryutil.BigEndian.PutUint16(min),
+		},
+		&expr.Cmp{
+			Register: defaultRegister,
+			Op:       expr.CmpOpLte,
+			Data:     binaryutil.BigEndian.PutUint16(max),
+		},
+	}
 }
 
 // GetPortSet helper.
