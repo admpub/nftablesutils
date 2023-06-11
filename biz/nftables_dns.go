@@ -7,6 +7,9 @@ import (
 )
 
 func (nft *NFTables) inputDNSRules(c *nftables.Conn, iface string) error {
+	if !nft.cfg.CanApply(ApplyTypeDNS) {
+		return nil
+	}
 	// cmd: nft add rule ip filter input meta iifname "eth0" \
 	// ip protocol udp udp sport 53 \
 	// ct state established accept
@@ -48,6 +51,9 @@ func (nft *NFTables) inputDNSRules(c *nftables.Conn, iface string) error {
 }
 
 func (nft *NFTables) outputDNSRules(c *nftables.Conn, iface string) error {
+	if !nft.cfg.CanApply(ApplyTypeDNS) {
+		return nil
+	}
 	// cmd: nft add rule ip filter output meta oifname "eth0" \
 	// ip protocol udp udp dport 53 \
 	// ct state { new, established } accept

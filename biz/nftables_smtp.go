@@ -7,7 +7,7 @@ import (
 )
 
 func (nft *NFTables) forwardSMTPRules(c *nftables.Conn) error {
-	if nft.cfg.DefaultPolicy != "accept" {
+	if !nft.cfg.CanApply(ApplyTypeSMTP) {
 		return nil
 	}
 	// cmd: nft add rule ip filter forward \

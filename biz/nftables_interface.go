@@ -7,6 +7,10 @@ import (
 )
 
 func (nft *NFTables) forwardInterfaceRules(c *nftables.Conn) error {
+	if len(nft.myIface) == 0 {
+		return nil
+	}
+
 	// cmd: nft add rule ip filter forward \
 	// meta iifname "wg0" \
 	// ip saddr @wgforward_ipset \
@@ -70,6 +74,10 @@ func (nft *NFTables) forwardInterfaceRules(c *nftables.Conn) error {
 }
 
 func (nft *NFTables) natInterfaceRules(c *nftables.Conn) error {
+	if len(nft.wanIface) == 0 || len(nft.wanIP) == 0 || nft.wanIP.IsUnspecified() {
+		return nil
+	}
+
 	// cmd: nft add rule ip nat postrouting meta oifname "eth0" \
 	// snat 192.168.0.1
 	// --

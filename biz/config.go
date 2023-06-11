@@ -11,10 +11,26 @@ type Config struct {
 	NetworkNamespace string
 	DefaultPolicy    string // accept / drop
 	TablePrefix      string
+	Applies          []string
 	MyIface          string
 	MyPort           uint16
 	Ifaces           []string
 	TrustPorts       []uint16
+}
+
+const (
+	ApplyTypeHTTP = `http`
+	ApplyTypeSMTP = `smtp`
+	ApplyTypeDNS  = `smtp`
+)
+
+func (c *Config) CanApply(name string) bool {
+	for _, applyType := range c.Applies {
+		if applyType == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Config) trustPorts() []nftables.SetElement {

@@ -766,10 +766,6 @@ func (nft *NFTables) sdnForwardRules(c *nftables.Conn) error {
 		return err
 	}
 
-	if len(nft.myIface) == 0 {
-		return nil
-	}
-
 	return nft.forwardInterfaceRules(c)
 }
 

@@ -7,6 +7,9 @@ import (
 )
 
 func (nft *NFTables) inputHTTPServerRules(c *nftables.Conn, iface string) error {
+	if !nft.cfg.CanApply(ApplyTypeHTTP) {
+		return nil
+	}
 	// cmd: nft add rule ip filter input meta iifname "eth0" \
 	// ip protocol tcp tcp sport { 80, 443 } \
 	// ct state established accept
@@ -38,6 +41,9 @@ func (nft *NFTables) inputHTTPServerRules(c *nftables.Conn, iface string) error 
 }
 
 func (nft *NFTables) outputHTTPServerRules(c *nftables.Conn, iface string) error {
+	if !nft.cfg.CanApply(ApplyTypeHTTP) {
+		return nil
+	}
 	// cmd: nft add rule ip filter output meta oifname "eth0" \
 	// ip protocol tcp tcp dport { 80, 443 } \
 	// ct state { new, established } accept
