@@ -9,6 +9,7 @@ var (
 	typeProtoICMP                 = []byte{unix.IPPROTO_ICMP}
 	typeProtoICMPV6               = []byte{unix.IPPROTO_ICMPV6}
 	typeICMPTypeEchoRequest       = []byte{unix.ECHO}
+	typeICMPv6TypeEchoRequest     = []byte{128}
 	typeProtoUDP                  = []byte{unix.IPPROTO_UDP}
 	typeProtoTCP                  = []byte{unix.IPPROTO_TCP}
 	typeConntrackStateNew         = []byte{0x08, 0x00, 0x00, 0x00}
@@ -29,6 +30,11 @@ func TypeProtoICMPV6() []byte {
 // TypeICMPTypeEchoRequest bytes.
 func TypeICMPTypeEchoRequest() []byte {
 	return typeICMPTypeEchoRequest
+}
+
+// TypeICMPv6TypeEchoRequest bytes.
+func TypeICMPv6TypeEchoRequest() []byte {
+	return typeICMPv6TypeEchoRequest
 }
 
 // TypeProtoUDP bytes.

@@ -532,14 +532,11 @@ func (nft *NFTables) inputTrustIPSetRules(c *nftables.Conn, iface string) error 
 	switch nft.tableFamily {
 	case nftables.TableFamilyIPv4:
 		exprs = append(exprs, utils.SetProtoICMP()...)
-	case nftables.TableFamilyIPv6:
-		exprs = append(exprs, utils.SetProtoICMPv6()...)
-	}
-	exprs = append(exprs, utils.SetICMPTypeEchoRequest()...)
-	switch nft.tableFamily {
-	case nftables.TableFamilyIPv4:
+		exprs = append(exprs, utils.SetICMPTypeEchoRequest()...)
 		exprs = append(exprs, utils.SetSAddrSet(nft.filterSetTrustIP)...)
 	case nftables.TableFamilyIPv6:
+		exprs = append(exprs, utils.SetProtoICMPv6()...)
+		exprs = append(exprs, utils.SetICMPv6TypeEchoRequest()...)
 		exprs = append(exprs, utils.SetSAddrIPv6Set(nft.filterSetTrustIP)...)
 	}
 	exprs = append(exprs, utils.SetConntrackStateNew()...)
@@ -690,10 +687,11 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	switch nft.tableFamily {
 	case nftables.TableFamilyIPv4:
 		exprs = append(exprs, utils.SetProtoICMP()...)
+		exprs = append(exprs, utils.SetICMPTypeEchoRequest()...)
 	case nftables.TableFamilyIPv6:
 		exprs = append(exprs, utils.SetProtoICMPv6()...)
+		exprs = append(exprs, utils.SetICMPv6TypeEchoRequest()...)
 	}
-	exprs = append(exprs, utils.SetICMPTypeEchoRequest()...)
 	exprs = append(exprs, utils.SetConntrackStateNew()...)
 	exprs = append(exprs, utils.ExprAccept())
 	rule := &nftables.Rule{

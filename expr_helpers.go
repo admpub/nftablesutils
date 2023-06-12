@@ -155,6 +155,16 @@ func SetICMPTypeEchoRequest() Exprs {
 	return exprs
 }
 
+// SetICMPv6TypeEchoRequest helper.
+func SetICMPv6TypeEchoRequest() Exprs {
+	exprs := []expr.Any{
+		ExprPayloadTransportHeader(defaultRegister, 0, 1),
+		ExprCmpEq(defaultRegister, TypeICMPv6TypeEchoRequest()),
+	}
+
+	return exprs
+}
+
 // SetProtoUDP helper.
 func SetProtoUDP() Exprs {
 	exprs := []expr.Any{
