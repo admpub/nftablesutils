@@ -12,3 +12,11 @@ func TestGetNetInterface(t *testing.T) {
 	t.Logf(`ipv4: %+v`, ipv4)
 	t.Logf(`ipv6: %+v`, ipv6)
 }
+
+func TestIPv6Addr(t *testing.T) {
+	iface, gatewayIP, wanIP, err := IPv6Addr()
+	assert.NoError(t, err)
+	t.Logf(`iface: %v`, iface)
+	t.Logf(`gatewayIP: %s`, gatewayIP)
+	t.Logf(`wanIP: %s`, wanIP)
+}

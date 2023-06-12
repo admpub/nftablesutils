@@ -63,7 +63,14 @@ func (nft *NFTables) Init() error {
 	}
 	cfg := nft.cfg
 	// obtain default interface name, ip address and gateway ip address
-	wanIface, _, wanIP, err := utils.IPAddr()
+	var wanIface string
+	var wanIP net.IP
+	var err error
+	if nft.tableFamily == nftables.TableFamilyIPv6 {
+		wanIface, _, wanIP, err = utils.IPv6Addr()
+	} else {
+		wanIface, _, wanIP, err = utils.IPAddr()
+	}
 	if err != nil {
 		err = fmt.Errorf(`failed to obtain default interface name: %w`, err)
 	}
@@ -103,9 +110,9 @@ func (nft *NFTables) Init() error {
 	}
 
 	tNAT := &nftables.Table{
-		//Family: nft.tableFamily,
-		Family: nftables.TableFamilyIPv4,
-		Name:   cfg.TablePrefix + "nat",
+		Family: nft.tableFamily,
+		//Family: nftables.TableFamilyIPv4,
+		Name: cfg.TablePrefix + "nat",
 	}
 	cPostrouting := &nftables.Chain{
 		Name:     "postrouting",

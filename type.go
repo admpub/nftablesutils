@@ -8,7 +8,7 @@ import (
 var (
 	typeProtoICMP                 = []byte{unix.IPPROTO_ICMP}
 	typeProtoICMPV6               = []byte{unix.IPPROTO_ICMPV6}
-	typeICMPTypeEchoRequest       = []byte{unix.IP_PKTINFO}
+	typeICMPTypeEchoRequest       = []byte{unix.ECHO}
 	typeProtoUDP                  = []byte{unix.IPPROTO_UDP}
 	typeProtoTCP                  = []byte{unix.IPPROTO_TCP}
 	typeConntrackStateNew         = []byte{0x08, 0x00, 0x00, 0x00}

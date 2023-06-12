@@ -35,7 +35,7 @@ func TestNFTables(t *testing.T) {
 		TrustPorts:       []uint16{22},
 		Applies:          []string{ApplyTypeDNS, ApplyTypeHTTP, ApplyTypeSMTP},
 	}
-	c := New(nftables.TableFamilyIPv4, cfg, []uint16{8080})
+	c := New(nftables.TableFamilyIPv6, cfg, []uint16{8080})
 	c.Init()
 	err = c.ApplyDefault()
 	assert.NoError(t, err)
@@ -79,7 +79,7 @@ func TestNFTables(t *testing.T) {
 		return err
 	})
 
-	//testServer()
+	testServer()
 	c.Cleanup()
 	_ = cfg
 }
