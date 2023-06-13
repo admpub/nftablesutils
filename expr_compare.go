@@ -20,16 +20,6 @@ func NotEquals(data []byte, reg uint32) *expr.Cmp {
 	return ExprCmpNeq(reg, data)
 }
 
-// Returns an accept verdict expression
-func Accept() *expr.Verdict {
-	return ExprAccept()
-}
-
-// Returns an drop verdict expression
-func Drop() *expr.Verdict {
-	return ExprDrop()
-}
-
 // Returns a xtables match expression
 func Match(name string, revision uint32, info xt.InfoAny) *expr.Match {
 	return &expr.Match{
