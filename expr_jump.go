@@ -12,7 +12,7 @@ func Drop() *expr.Verdict {
 	return ExprDrop()
 }
 
-// Returns an reject verdict expression
+// Returns an reject expression
 func Reject() *expr.Reject {
 	return ExprReject(0, 0)
 }
