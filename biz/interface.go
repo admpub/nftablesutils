@@ -31,8 +31,10 @@ type INFTables interface {
 	ChainInput() *nftables.Chain
 	ChainForward() *nftables.Chain
 	ChainOutput() *nftables.Chain
-	NATFilter() *nftables.Table
+
+	TableNAT() *nftables.Table
 	ChainPostrouting() *nftables.Chain
+
 	FilterSetTrustIP() *nftables.Set
 	FilterSetMyManagerIP() *nftables.Set
 	FilterSetMyForwardIP() *nftables.Set

@@ -1039,7 +1039,7 @@ func (nft *NFTables) ChainOutput() *nftables.Chain {
 	return nft.cOutput
 }
 
-func (nft *NFTables) NATFilter() *nftables.Table {
+func (nft *NFTables) TableNAT() *nftables.Table {
 	return nft.tNAT
 }
 
