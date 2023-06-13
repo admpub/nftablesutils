@@ -64,8 +64,5 @@ func TypeConntrackStateRelated() []byte {
 
 // ConntrackStateDatatype object.
 func TypeConntrackStateDatatype() nftables.SetDatatype {
-	ctStateDataType := nftables.SetDatatype{Name: "ct_state", Bytes: 4}
-	// nftMagic: https://git.netfilter.org/nftables/tree/src/datatype.c#n32 (arr index)
-	ctStateDataType.SetNFTMagic(26)
-	return ctStateDataType
+	return nftables.TypeCTState
 }
