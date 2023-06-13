@@ -224,26 +224,7 @@ func (nft *NFTables) networkNamespaceRelease() error {
 	return nil
 }
 
-// apply rules
-func (nft *NFTables) apply() error {
-	if !nft.cfg.Enabled {
-		return nil
-	}
-
-	// bind network namespace if it was set in config
-	c, err := nft.networkNamespaceBind()
-	if err != nil {
-		return fmt.Errorf(`nft.networkNamespaceBind: %w`, err)
-	}
-
-	// release network namespace finally
-	defer nft.networkNamespaceRelease()
-
-	c.FlushRuleset()
-	//
-	// Init Tables and Chains.
-	//
-
+func (nft *NFTables) ApplyBase(c *nftables.Conn) error {
 	// add filter table
 	// cmd: nft add table ip filter
 	c.AddTable(nft.tFilter)
@@ -278,7 +259,7 @@ func (nft *NFTables) apply() error {
 	// set trust_ipset {
 	//         type ipv4_addr
 	// }
-	err = c.AddSet(nft.filterSetTrustIP, nil)
+	err := c.AddSet(nft.filterSetTrustIP, nil)
 	if err != nil {
 		return fmt.Errorf(`nft.AddSet(%q): %w`, nft.filterSetTrustIP.Name, err)
 	}
@@ -303,6 +284,32 @@ func (nft *NFTables) apply() error {
 	err = c.AddSet(nft.filterSetMyForwardIP, nil)
 	if err != nil {
 		return fmt.Errorf(`nft.AddSet(%q): %w`, nft.filterSetMyForwardIP.Name, err)
+	}
+	return err
+}
+
+// apply rules
+func (nft *NFTables) apply() error {
+	if !nft.cfg.Enabled {
+		return nil
+	}
+
+	// bind network namespace if it was set in config
+	c, err := nft.networkNamespaceBind()
+	if err != nil {
+		return fmt.Errorf(`nft.networkNamespaceBind: %w`, err)
+	}
+
+	// release network namespace finally
+	defer nft.networkNamespaceRelease()
+
+	c.FlushRuleset()
+	//
+	// Init Tables and Chains.
+	//
+	err = nft.ApplyBase(c)
+	if err != nil {
+		return err
 	}
 
 	//
