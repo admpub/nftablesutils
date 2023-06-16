@@ -114,6 +114,11 @@ func ExprCmpNeq(reg uint32, data []byte) *expr.Cmp {
 	}
 }
 
+// ExprLookupSetFromSet wrapper
+func ExprLookupSetFromSet(set *nftables.Set, reg uint32) *expr.Lookup {
+	return ExprLookupSet(reg, set.Name, set.ID)
+}
+
 // ExprLookupSet wrapper
 func ExprLookupSet(reg uint32, name string, id uint32) *expr.Lookup {
 	// [ lookup reg 1 set adminipset ]

@@ -184,7 +184,7 @@ func CompareSourceAddressSetWithRegister(set *nftables.Set, reg uint32) ([]expr.
 		return []expr.Any{}, fmt.Errorf("unsupported set key type %v", set.KeyType.Name)
 	}
 
-	return []expr.Any{srcAddr, IPSetLookUp(set, reg)}, nil
+	return []expr.Any{srcAddr, ExprLookupSetFromSet(set, reg)}, nil
 }
 
 // Returns a list of expressions that will compare the destination address of traffic against a set
@@ -204,7 +204,7 @@ func CompareDestinationAddressSetWithRegister(set *nftables.Set, reg uint32) ([]
 		return []expr.Any{}, fmt.Errorf("unsupported set key type %v", set.KeyType.Name)
 	}
 
-	return []expr.Any{dstAddr, IPSetLookUp(set, reg)}, nil
+	return []expr.Any{dstAddr, ExprLookupSetFromSet(set, reg)}, nil
 }
 
 // Returns a list of expressions that will compare the source port of traffic against a set
@@ -214,7 +214,7 @@ func CompareSourcePortSet(set *nftables.Set) ([]expr.Any, error) {
 
 // Returns a list of expressions that will compare the source port of traffic against a set, with a user defined register
 func CompareSourcePortSetWithRegister(set *nftables.Set, reg uint32) ([]expr.Any, error) {
-	return []expr.Any{SourcePort(reg), PortSetLookUp(set, reg)}, nil
+	return []expr.Any{SourcePort(reg), ExprLookupSetFromSet(set, reg)}, nil
 }
 
 // Returns a list of expressions that will compare the destination port of traffic against a set
@@ -224,7 +224,7 @@ func CompareDestinationPortSet(set *nftables.Set) []expr.Any {
 
 // Returns a list of expressions that will compare the destination port of traffic against a set, with a user defined register
 func CompareDestinationPortSetWithRegister(set *nftables.Set, reg uint32) []expr.Any {
-	return []expr.Any{DestinationPort(reg), PortSetLookUp(set, reg)}
+	return []expr.Any{DestinationPort(reg), ExprLookupSetFromSet(set, reg)}
 }
 
 func BitwiseWithRegisters(sourceRegister uint32, destRegister uint32, length uint32, mask []byte, xor []byte) *expr.Bitwise {
