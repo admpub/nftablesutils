@@ -43,7 +43,7 @@ func New(c *nftables.Conn, table *nftables.Table, name string, keyType nftables.
 			return Set{}, fmt.Errorf("failed to parse initial port set element %v: %v", initIPv4, err)
 		}
 
-		initElems, err = generateElements(keyType, []SetData{ip})
+		initElems, err = GenerateElements(keyType, []SetData{ip})
 		if err != nil {
 			return Set{}, fmt.Errorf("failed to generate initial ipv4 set element %v: %v", ip, err)
 		}
@@ -53,7 +53,7 @@ func New(c *nftables.Conn, table *nftables.Table, name string, keyType nftables.
 			return Set{}, fmt.Errorf("failed to parse initial ipv6 set element %v: %v", initIPv6, err)
 		}
 
-		initElems, err = generateElements(keyType, []SetData{ip})
+		initElems, err = GenerateElements(keyType, []SetData{ip})
 		if err != nil {
 			return Set{}, fmt.Errorf("failed to generate initial ipv6 set element: %v: %v", ip, err)
 		}
@@ -63,7 +63,7 @@ func New(c *nftables.Conn, table *nftables.Table, name string, keyType nftables.
 			return Set{}, fmt.Errorf("failed to parse initial port set element %v: %v", initPort, err)
 		}
 
-		initElems, err = generateElements(keyType, []SetData{port})
+		initElems, err = GenerateElements(keyType, []SetData{port})
 		if err != nil {
 			return Set{}, fmt.Errorf("failed to generate initial port set element: %v: %v", port, err)
 		}
@@ -122,7 +122,7 @@ func (s *Set) UpdateElements(c *nftables.Conn, newSetData []SetData) (bool, int,
 	if len(removeSetData) > 0 {
 		modified = true
 
-		removeElems, err := generateElements(s.set.KeyType, removeSetData)
+		removeElems, err := GenerateElements(s.set.KeyType, removeSetData)
 		if err != nil {
 			return false, 0, 0, fmt.Errorf("generating set elements failed for %v: %v", s.set.Name, err)
 		}
@@ -139,7 +139,7 @@ func (s *Set) UpdateElements(c *nftables.Conn, newSetData []SetData) (bool, int,
 	if len(addSetData) > 0 {
 		modified = true
 
-		addElems, err := generateElements(s.set.KeyType, addSetData)
+		addElems, err := GenerateElements(s.set.KeyType, addSetData)
 		if err != nil {
 			return false, 0, 0, fmt.Errorf("generating set elements failed for %v: %v", s.set.Name, err)
 		}
@@ -162,7 +162,7 @@ func (s *Set) ClearAndAddElements(c *nftables.Conn, newSetData []SetData) error 
 	// Clear/Initialize existing map
 	s.currentSetData = make(map[SetData]struct{})
 
-	newElems, err := generateElements(s.set.KeyType, newSetData)
+	newElems, err := GenerateElements(s.set.KeyType, newSetData)
 	if err != nil {
 		return fmt.Errorf("generating set elements failed for %v: %v", s.set.Name, err)
 	}
@@ -184,7 +184,37 @@ func (s *Set) GetSet() *nftables.Set {
 	return s.set
 }
 
-func generateElements(keyType nftables.SetDatatype, list []SetData) ([]nftables.SetElement, error) {
+func GenerateElementsFromPort(ports []string) ([]nftables.SetElement, error) {
+
+	setData, err := PortStringsToSetData(ports)
+	if err != nil {
+		return nil, err
+	}
+
+	return GenerateElements(nftables.TypeInetService, setData)
+}
+
+func GenerateElementsFromIPv4Address(ipAddresses []string) ([]nftables.SetElement, error) {
+
+	setData, err := AddressStringsToSetData(ipAddresses)
+	if err != nil {
+		return nil, err
+	}
+
+	return GenerateElements(nftables.TypeIPAddr, setData)
+}
+
+func GenerateElementsFromIPv6Address(ipAddresses []string) ([]nftables.SetElement, error) {
+
+	setData, err := AddressStringsToSetData(ipAddresses)
+	if err != nil {
+		return nil, err
+	}
+
+	return GenerateElements(nftables.TypeIP6Addr, setData)
+}
+
+func GenerateElements(keyType nftables.SetDatatype, list []SetData) ([]nftables.SetElement, error) {
 	// we use interval sets for everything so we have a common set to build on top of
 	// due to this for each set type we need to generate start and ends of each interval even for single IPs
 	elems := []nftables.SetElement{}

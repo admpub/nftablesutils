@@ -258,7 +258,7 @@ func testDialWithWant(t *testing.T, want [][]byte) *nftables.Conn {
 }
 
 func TestGenerateSetElementsEmpty(t *testing.T) {
-	res, err := generateElements(nftables.TypeIPAddr, []SetData{})
+	res, err := GenerateElements(nftables.TypeIPAddr, []SetData{})
 	assert.Nil(t, err)
 	assert.Equal(t, []nftables.SetElement{}, res)
 }
@@ -267,7 +267,7 @@ func TestGenerateSetElementsBadType(t *testing.T) {
 	setData, err := AddressStringsToSetData([]string{"198.51.100.1-198.51.100.100"})
 	assert.Nil(t, err)
 
-	res, err := generateElements(nftables.TypeARPHRD, setData)
+	res, err := GenerateElements(nftables.TypeARPHRD, setData)
 	assert.Error(t, err)
 	assert.Equal(t, []nftables.SetElement{}, res)
 }
@@ -276,7 +276,7 @@ func TestGenerateSetElementsMismatchedIPVersionsV4(t *testing.T) {
 	setData, err := AddressStringsToSetData([]string{"198.51.100.1-198.51.100.100"})
 	assert.Nil(t, err)
 
-	res, err := generateElements(nftables.TypeIP6Addr, setData)
+	res, err := GenerateElements(nftables.TypeIP6Addr, setData)
 	assert.Nil(t, err)
 	assert.Equal(t, []nftables.SetElement{}, res)
 }
@@ -285,7 +285,7 @@ func TestGenerateSetElementsMismatchedIPVersionsV6(t *testing.T) {
 	setData, err := AddressStringsToSetData([]string{"2001:db80:85a3:1:1:8a2e:1370:7336-2001:db80:85a3:1:1:8a2e:1370:7339"})
 	assert.Nil(t, err)
 
-	res, err := generateElements(nftables.TypeIPAddr, setData)
+	res, err := GenerateElements(nftables.TypeIPAddr, setData)
 	assert.Nil(t, err)
 	assert.Equal(t, []nftables.SetElement{}, res)
 }
@@ -294,7 +294,7 @@ func TestGenerateSetElementsAddressInvalidRangeV4(t *testing.T) {
 	setData, err := AddressStringsToSetData([]string{"198.51.100.100-198.51.100.1"})
 	assert.Nil(t, err)
 
-	res, err := generateElements(nftables.TypeIPAddr, setData)
+	res, err := GenerateElements(nftables.TypeIPAddr, setData)
 	assert.Error(t, err)
 	assert.Equal(t, []nftables.SetElement{}, res)
 }
@@ -303,7 +303,7 @@ func TestGenerateSetElementsAddressInvalidRangeV6(t *testing.T) {
 	setData, err := AddressStringsToSetData([]string{"2001:db80:85a3:1:1:8a2e:1370:7336-2001:db80:85a3:1:1:8a2e:1370:7334"})
 	assert.Nil(t, err)
 
-	res, err := generateElements(nftables.TypeIP6Addr, setData)
+	res, err := GenerateElements(nftables.TypeIP6Addr, setData)
 	assert.Error(t, err)
 	assert.Equal(t, []nftables.SetElement{}, res)
 }
@@ -312,7 +312,7 @@ func TestGenerateSetElementsInvalidIPV4(t *testing.T) {
 	setData, err := AddressStringsToSetData([]string{"0.0.0.0"})
 	assert.Nil(t, err)
 
-	res, err := generateElements(nftables.TypeIPAddr, setData)
+	res, err := GenerateElements(nftables.TypeIPAddr, setData)
 	assert.Error(t, err)
 	assert.Equal(t, []nftables.SetElement{}, res)
 }
@@ -321,14 +321,14 @@ func TestGenerateSetElementsInvalidIPV6(t *testing.T) {
 	setData, err := AddressStringsToSetData([]string{"::"})
 	assert.Nil(t, err)
 
-	res, err := generateElements(nftables.TypeIP6Addr, setData)
+	res, err := GenerateElements(nftables.TypeIP6Addr, setData)
 	assert.Error(t, err)
 	assert.Equal(t, []nftables.SetElement{}, res)
 }
 
 func TestGenerateSetElementsInvalidPrefix(t *testing.T) {
 	setData := []SetData{{Prefix: netip.Prefix{}}}
-	res, err := generateElements(nftables.TypeIPAddr, setData)
+	res, err := GenerateElements(nftables.TypeIPAddr, setData)
 	assert.Error(t, err)
 	assert.Equal(t, []nftables.SetElement{}, res)
 }
@@ -337,7 +337,7 @@ func TestGenerateSetElementsInvalidPrefixV4(t *testing.T) {
 	setData := []SetData{
 		{Prefix: netip.MustParsePrefix("0.0.0.0/30")},
 	}
-	res, err := generateElements(nftables.TypeIPAddr, setData)
+	res, err := GenerateElements(nftables.TypeIPAddr, setData)
 	assert.Error(t, err)
 	assert.Equal(t, []nftables.SetElement{}, res)
 }
@@ -346,28 +346,28 @@ func TestGenerateSetElementsInvalidPrefixV6(t *testing.T) {
 	setData := []SetData{
 		{Prefix: netip.MustParsePrefix("::/30")},
 	}
-	res, err := generateElements(nftables.TypeIP6Addr, setData)
+	res, err := GenerateElements(nftables.TypeIP6Addr, setData)
 	assert.Error(t, err)
 	assert.Equal(t, []nftables.SetElement{}, res)
 }
 
 func TestGenerateSetElementsEmptySetDataPorts(t *testing.T) {
 	setData := []SetData{{}}
-	res, err := generateElements(nftables.TypeInetService, setData)
+	res, err := GenerateElements(nftables.TypeInetService, setData)
 	assert.Error(t, err)
 	assert.Equal(t, []nftables.SetElement{}, res)
 }
 
 func TestGenerateSetElementsEmptySetDataAddresses(t *testing.T) {
 	setData := []SetData{{}}
-	res, err := generateElements(nftables.TypeIP6Addr, setData)
+	res, err := GenerateElements(nftables.TypeIP6Addr, setData)
 	assert.Error(t, err)
 	assert.Equal(t, []nftables.SetElement{}, res)
 }
 
 func TestGenerateSetElementsMultipleSetDataPorts(t *testing.T) {
 	setData := []SetData{{Port: 1000, PortRangeStart: 1001}}
-	res, err := generateElements(nftables.TypeInetService, setData)
+	res, err := GenerateElements(nftables.TypeInetService, setData)
 	assert.Error(t, err)
 	assert.Equal(t, []nftables.SetElement{}, res)
 }
@@ -376,7 +376,7 @@ func TestGenerateSetElementsMultipleSetDataAddresses(t *testing.T) {
 	addr := netip.MustParseAddr("198.51.100.100")
 	start := netip.MustParseAddr("198.51.100.101")
 	setData := []SetData{{Address: addr, AddressRangeStart: start}}
-	res, err := generateElements(nftables.TypeIPAddr, setData)
+	res, err := GenerateElements(nftables.TypeIPAddr, setData)
 	assert.Error(t, err)
 	assert.Equal(t, []nftables.SetElement{}, res)
 }
@@ -385,7 +385,7 @@ func TestGenerateSetElementsMultipleSetDataAddressesPrefix(t *testing.T) {
 	addr := netip.MustParseAddr("198.51.100.100")
 	prefix := netip.MustParsePrefix("198.51.100.101/30")
 	setData := []SetData{{Address: addr, Prefix: prefix}}
-	res, err := generateElements(nftables.TypeIPAddr, setData)
+	res, err := GenerateElements(nftables.TypeIPAddr, setData)
 	assert.Error(t, err)
 	assert.Equal(t, []nftables.SetElement{}, res)
 }
@@ -394,7 +394,7 @@ func TestGenerateSetElementsMultipleSetDataAddressRangePrefix(t *testing.T) {
 	start := netip.MustParseAddr("198.51.100.100")
 	prefix := netip.MustParsePrefix("198.51.100.101/30")
 	setData := []SetData{{AddressRangeStart: start, Prefix: prefix}}
-	res, err := generateElements(nftables.TypeIPAddr, setData)
+	res, err := GenerateElements(nftables.TypeIPAddr, setData)
 	assert.Error(t, err)
 	assert.Equal(t, []nftables.SetElement{}, res)
 }
@@ -443,7 +443,7 @@ func processGoodSetElements(t *testing.T, keyType nftables.SetDatatype, addressS
 		assert.Nil(t, err)
 	}
 
-	elements, err := generateElements(keyType, setData)
+	elements, err := GenerateElements(keyType, setData)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 2, len(elements))
