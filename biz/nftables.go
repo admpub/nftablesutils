@@ -300,8 +300,9 @@ func (nft *NFTables) apply() error {
 
 	// release network namespace finally
 	defer nft.networkNamespaceRelease()
-
-	c.FlushRuleset()
+	if nft.cfg.ClearRuleset {
+		c.FlushRuleset()
+	}
 	//
 	// Init Tables and Chains.
 	//
@@ -604,7 +605,9 @@ func (nft *NFTables) Cleanup() error {
 
 	filterSetTrustElements, _ := c.GetSetElements(nft.filterSetTrustIP) // omit error
 
-	c.FlushRuleset()
+	if nft.cfg.ClearRuleset {
+		c.FlushRuleset()
+	}
 
 	// add filter table
 	// cmd: nft add table ip filter

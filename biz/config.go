@@ -14,6 +14,7 @@ type Config struct {
 	Applies          []string
 	MyIface          string
 	MyPort           uint16
+	ClearRuleset     bool
 	Ifaces           []string
 	TrustPorts       []uint16
 }
