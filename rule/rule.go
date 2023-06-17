@@ -78,7 +78,7 @@ func (r *RuleTarget) Delete(c *nftables.Conn, ruleData RuleData) (bool, error) {
 		return false, err
 	}
 
-	rule := findRuleByID(ruleData.ID, rules)
+	rule := findRuleByID(ruleData.ID, rules, ruleData.Handle)
 
 	if rule.Table == nil {
 		// if the rule we get back is empty (the final return in findRuleByID) we didn't find it
@@ -99,7 +99,7 @@ func (r *RuleTarget) Exists(c *nftables.Conn, ruleData RuleData) (bool, error) {
 		return false, err
 	}
 
-	rule := findRuleByID(ruleData.ID, rules)
+	rule := findRuleByID(ruleData.ID, rules, ruleData.Handle)
 
 	if rule.Table == nil {
 		// if the rule we get back is empty (the final return in findRuleByID) we didn't find it
@@ -172,9 +172,13 @@ func genRuleDelta(existingRules []*nftables.Rule, newRules []RuleData) (add []Ru
 	return
 }
 
-func findRuleByID(id []byte, rules []*nftables.Rule) *nftables.Rule {
+func findRuleByID(id []byte, rules []*nftables.Rule, handleID uint64) *nftables.Rule {
 	for _, rule := range rules {
-		if bytes.Equal(rule.UserData, id) {
+		if handleID > 0 {
+			if rule.Handle == handleID {
+				return rule
+			}
+		} else if bytes.Equal(rule.UserData, id) {
 			return rule
 		}
 	}
