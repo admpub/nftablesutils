@@ -607,6 +607,9 @@ func (nft *NFTables) Cleanup() error {
 
 	if nft.cfg.ClearRuleset {
 		c.FlushRuleset()
+	} else {
+		c.FlushTable(nft.tFilter)
+		c.FlushTable(nft.tNAT)
 	}
 
 	// add filter table

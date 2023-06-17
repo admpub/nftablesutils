@@ -21,7 +21,7 @@ func testServer() {
 }
 
 // sudo go test -v --count=1 -run "^TestNFTables$"
-func _TestNFTables(t *testing.T) {
+func TestNFTables(t *testing.T) {
 	wanIface, _, _, err := utils.IPAddr()
 	assert.NoError(t, err)
 	assert.Equal(t, `eth0`, wanIface)
@@ -36,7 +36,7 @@ func _TestNFTables(t *testing.T) {
 		TrustPorts:       []uint16{22},
 		Applies:          []string{ApplyTypeDNS, ApplyTypeHTTP, ApplyTypeSMTP},
 	}
-	c := New(nftables.TableFamilyIPv6, cfg, []uint16{8080})
+	c := New(nftables.TableFamilyIPv4, cfg, []uint16{8080})
 	c.Init()
 	err = c.ApplyDefault()
 	assert.NoError(t, err)
