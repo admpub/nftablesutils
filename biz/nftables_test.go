@@ -20,7 +20,8 @@ func testServer() {
 	log.Fatal(err)
 }
 
-func TestNFTables(t *testing.T) {
+// sudo go test -v --count=1 -run "^TestNFTables$"
+func _TestNFTables(t *testing.T) {
 	wanIface, _, _, err := utils.IPAddr()
 	assert.NoError(t, err)
 	assert.Equal(t, `eth0`, wanIface)
