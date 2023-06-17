@@ -11,6 +11,9 @@ var defaultStateWithOld = []string{utils.StateEstablished, utils.StateRelated}
 
 // inputTrustIPSetRules to apply.
 func (nft *NFTables) inputTrustIPSetRules(c *nftables.Conn, iface string) error {
+	if len(nft.cfg.TrustPorts) == 0 {
+		return nil
+	}
 	// cmd: nft add rule ip filter input meta iifname "eth0" ip protocol icmp \
 	// icmp type echo-request ip saddr @trust_ipset ct state new accept
 	// --
@@ -78,6 +81,9 @@ func (nft *NFTables) inputTrustIPSetRules(c *nftables.Conn, iface string) error 
 
 // outputTrustIPSetRules to apply.
 func (nft *NFTables) outputTrustIPSetRules(c *nftables.Conn, iface string) error {
+	if len(nft.cfg.TrustPorts) == 0 {
+		return nil
+	}
 	// cmd: nft add rule ip filter output meta oifname "eth0" \
 	// ip protocol tcp tcp sport { 5522 } ip daddr @trust_ipset \
 	// ct state established accept
