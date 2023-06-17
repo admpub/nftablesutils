@@ -25,6 +25,8 @@ const (
 	ApplyTypeDNS  = `smtp`
 )
 
+var ApplyAll = []string{ApplyTypeHTTP, ApplyTypeSMTP, ApplyTypeDNS}
+
 func (c *Config) CanApply(name string) bool {
 	for _, applyType := range c.Applies {
 		if applyType == name {
