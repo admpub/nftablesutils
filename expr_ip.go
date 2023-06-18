@@ -3,6 +3,7 @@ package nftablesutils
 import (
 	"net"
 	"net/netip"
+	"strings"
 
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
@@ -31,6 +32,9 @@ func IPv6DestinationAddress(reg uint32) *expr.Payload {
 // SetCIDRMatcher generates nftables expressions that matches a CIDR
 // SetCIDRMatcher(ExprDirectionSource, `127.0.0.0/24`)
 func SetCIDRMatcher(direction ExprDirection, cidr string, isINet bool) []expr.Any {
+	if !strings.Contains(cidr, `/`) {
+		cidr += `/32`
+	}
 	ip, network, _ := net.ParseCIDR(cidr)
 	ipToAddr, _ := netip.AddrFromSlice(ip)
 	addr := ipToAddr.Unmap()
