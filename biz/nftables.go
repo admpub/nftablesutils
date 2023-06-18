@@ -302,6 +302,9 @@ func (nft *NFTables) apply() error {
 	defer nft.networkNamespaceRelease()
 	if nft.cfg.ClearRuleset {
 		c.FlushRuleset()
+	} else {
+		c.FlushTable(nft.tFilter)
+		c.FlushTable(nft.tNAT)
 	}
 	//
 	// Init Tables and Chains.
