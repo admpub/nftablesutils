@@ -25,12 +25,8 @@ func New(table *nftables.Table, chain *nftables.Chain) RuleTarget {
 // Add a rule with a given ID to a specific table and chain, returns true if the rule was added
 func (r *RuleTarget) Add(c *nftables.Conn, ruleData RuleData) (bool, error) {
 	exists, err := r.Exists(c, ruleData)
-	if err != nil {
+	if err != nil || exists {
 		return false, err
-	}
-
-	if exists {
-		return false, nil
 	}
 
 	add(c, r.table, r.chain, ruleData)
@@ -39,12 +35,8 @@ func (r *RuleTarget) Add(c *nftables.Conn, ruleData RuleData) (bool, error) {
 
 func (r *RuleTarget) Insert(c *nftables.Conn, ruleData RuleData) (bool, error) {
 	exists, err := r.Exists(c, ruleData)
-	if err != nil {
+	if err != nil || exists {
 		return false, err
-	}
-
-	if exists {
-		return false, nil
 	}
 
 	insert(c, r.table, r.chain, ruleData)
@@ -73,16 +65,9 @@ func insert(c *nftables.Conn, table *nftables.Table, chain *nftables.Chain, rule
 
 // Delete a rule with a given ID from a specific table and chain, returns true if the rule was deleted
 func (r *RuleTarget) Delete(c *nftables.Conn, ruleData RuleData) (bool, error) {
-	rules, err := c.GetRules(r.table, r.chain)
-	if err != nil {
+	rule, err := r.FindRuleByID(c, ruleData)
+	if err != nil || rule == nil {
 		return false, err
-	}
-
-	rule := findRuleByID(ruleData.ID, rules, ruleData.Handle)
-
-	if rule.Table == nil {
-		// if the rule we get back is empty (the final return in findRuleByID) we didn't find it
-		return false, nil
 	}
 
 	if err := c.DelRule(rule); err != nil {
@@ -92,20 +77,28 @@ func (r *RuleTarget) Delete(c *nftables.Conn, ruleData RuleData) (bool, error) {
 	return true, nil
 }
 
-// Determine if a rule with a given ID exists in a specific table and chain
-func (r *RuleTarget) Exists(c *nftables.Conn, ruleData RuleData) (bool, error) {
+func (r *RuleTarget) FindRuleByID(c *nftables.Conn, ruleData RuleData) (*nftables.Rule, error) {
 	rules, err := c.GetRules(r.table, r.chain)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	rule := findRuleByID(ruleData.ID, rules, ruleData.Handle)
 
 	if rule.Table == nil {
 		// if the rule we get back is empty (the final return in findRuleByID) we didn't find it
-		return false, nil
+		return nil, nil
 	}
 
+	return rule, nil
+}
+
+// Determine if a rule with a given ID exists in a specific table and chain
+func (r *RuleTarget) Exists(c *nftables.Conn, ruleData RuleData) (bool, error) {
+	rule, err := r.FindRuleByID(c, ruleData)
+	if err != nil || rule == nil {
+		return false, err
+	}
 	return true, nil
 }
 
