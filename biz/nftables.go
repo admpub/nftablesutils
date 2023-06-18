@@ -43,6 +43,7 @@ type NFTables struct {
 	cOutput  *nftables.Chain
 
 	tNAT         *nftables.Table
+	cPrerouting  *nftables.Chain
 	cPostrouting *nftables.Chain
 
 	filterSetTrustIP     *nftables.Set
@@ -112,6 +113,13 @@ func (nft *NFTables) Init() error {
 		//Family: nftables.TableFamilyIPv4,
 		Name: cfg.TablePrefix + "nat",
 	}
+	cPrerouting := &nftables.Chain{
+		Name:     "prerouting",
+		Table:    tNAT,
+		Type:     nftables.ChainTypeNAT,
+		Priority: nftables.ChainPriorityNATDest,
+		Hooknum:  nftables.ChainHookPrerouting,
+	}
 	cPostrouting := &nftables.Chain{
 		Name:     "postrouting",
 		Table:    tNAT,
@@ -152,6 +160,7 @@ func (nft *NFTables) Init() error {
 	nft.cOutput = cOutput
 
 	nft.tNAT = tNAT
+	nft.cPrerouting = cPrerouting
 	nft.cPostrouting = cPostrouting
 
 	nft.filterSetTrustIP = filterSetTrustIP
@@ -732,6 +741,10 @@ func (nft *NFTables) TableNAT() *nftables.Table {
 
 func (nft *NFTables) ChainPostrouting() *nftables.Chain {
 	return nft.cPostrouting
+}
+
+func (nft *NFTables) ChainPrerouting() *nftables.Chain {
+	return nft.cPrerouting
 }
 
 func (nft *NFTables) FilterSetTrustIP() *nftables.Set {

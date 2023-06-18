@@ -33,6 +33,7 @@ type INFTables interface {
 	ChainOutput() *nftables.Chain
 
 	TableNAT() *nftables.Table
+	ChainPrerouting() *nftables.Chain
 	ChainPostrouting() *nftables.Chain
 
 	FilterSetTrustIP() *nftables.Set
