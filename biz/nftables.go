@@ -251,6 +251,12 @@ func (nft *NFTables) ApplyBase(c *nftables.Conn) error {
 	// add nat table
 	// cmd: nft add table ip nat
 	c.AddTable(nft.tNAT)
+
+	// add prerouting chain
+	// cmd: nft add chain ip nat prerouting \
+	// { type nat hook prerouting priority -100 \; }
+	c.AddChain(nft.cPrerouting)
+
 	// add postrouting chain
 	// cmd: nft add chain ip nat postrouting \
 	// { type nat hook postrouting priority 100 \; }
@@ -616,8 +622,6 @@ func (nft *NFTables) Cleanup() error {
 	// release network namespace finally
 	defer nft.networkNamespaceRelease()
 
-	filterSetTrustElements, _ := c.GetSetElements(nft.filterSetTrustIP) // omit error
-
 	if nft.cfg.ClearRuleset {
 		c.FlushRuleset()
 	} else {
@@ -625,56 +629,7 @@ func (nft *NFTables) Cleanup() error {
 		c.FlushTable(nft.tNAT)
 		_ = c.Flush()
 	}
-
-	// add filter table
-	// cmd: nft add table ip filter
-	c.AddTable(nft.tFilter)
-	// add input chain of filter table
-	// cmd: nft add chain ip filter input \
-	// { type filter hook input priority 0 \; policy drop\; }
-	c.AddChain(nft.cInput)
-	// add forward chain
-	// cmd: nft add chain ip filter forward \
-	// { type filter hook forward priority 0 \; policy drop\; }
-	c.AddChain(nft.cForward)
-	// add output chain
-	// cmd: nft add chain ip filter output \
-	// { type filter hook output priority 0 \; policy drop\; }
-	c.AddChain(nft.cOutput)
-
-	// add trust_ipset
-	// cmd: nft add set ip filter trust_ipset { type ipv4_addr\; }
-	err = c.AddSet(nft.filterSetTrustIP, nil)
-	if err != nil {
-		return err
-	}
-
-	if filterSetTrustElements != nil {
-		_ = c.SetAddElements(nft.filterSetTrustIP, filterSetTrustElements) // omit error
-	}
-
-	nft.inputLocalIfaceRules(c)
-	nft.outputLocalIfaceRules(c)
-	_ = nft.inputHostBaseRules(c, nft.wanIface)    // omit error
-	_ = nft.outputHostBaseRules(c, nft.wanIface)   // omit error
-	_ = nft.inputTrustIPSetRules(c, nft.wanIface)  // omit error
-	_ = nft.outputTrustIPSetRules(c, nft.wanIface) // omit error
-	for _, iface := range nft.cfg.Ifaces {
-		if iface == nft.wanIface {
-			continue
-		}
-
-		_ = nft.inputHostBaseRules(c, iface)    // omit error
-		_ = nft.outputHostBaseRules(c, iface)   // omit error
-		_ = nft.inputTrustIPSetRules(c, iface)  // omit error
-		_ = nft.outputTrustIPSetRules(c, iface) // omit error
-	}
-
-	// apply configuration
-	err = c.Flush()
-	if err != nil {
-		return err
-	}
+	_ = c.Flush()
 	nft.applied = false
 
 	return nil
