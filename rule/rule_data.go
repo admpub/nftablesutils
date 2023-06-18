@@ -1,6 +1,7 @@
 package rule
 
 import (
+	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
 )
 
@@ -12,6 +13,16 @@ type RuleData struct {
 	// handles are less deterministic without setting them explicitly and lack context (only ints)
 	ID     []byte
 	Handle uint64
+}
+
+func (r RuleData) ToRule(table *nftables.Table, chain *nftables.Chain) nftables.Rule {
+	return nftables.Rule{
+		Table:    table,
+		Chain:    chain,
+		Exprs:    r.Exprs,
+		UserData: r.ID,
+		Handle:   r.Handle,
+	}
 }
 
 // Create a new RuleData from an ID and list of nftables expressions
