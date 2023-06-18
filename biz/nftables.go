@@ -305,6 +305,7 @@ func (nft *NFTables) apply() error {
 	} else {
 		c.FlushTable(nft.tFilter)
 		c.FlushTable(nft.tNAT)
+		_ = c.Flush()
 	}
 	//
 	// Init Tables and Chains.
@@ -613,6 +614,7 @@ func (nft *NFTables) Cleanup() error {
 	} else {
 		c.FlushTable(nft.tFilter)
 		c.FlushTable(nft.tNAT)
+		_ = c.Flush()
 	}
 
 	// add filter table
