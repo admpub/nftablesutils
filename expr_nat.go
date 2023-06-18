@@ -11,28 +11,28 @@ import (
 func SNAT(ip net.IP) []expr.Any {
 	return []expr.Any{
 		ExprImmediate(ip),
-		ExprSNAT(0, 0),
+		ExprSNAT(defaultRegister, 0),
 	}
 }
 
 func SNATv6(ip net.IP) []expr.Any {
 	return []expr.Any{
 		ExprImmediate(ip),
-		ExprSNATv6(0, 0),
+		ExprSNATv6(defaultRegister, 0),
 	}
 }
 
 func DNAT(ip net.IP) []expr.Any {
 	return []expr.Any{
 		ExprImmediate(ip),
-		ExprDNAT(0, 0),
+		ExprDNAT(defaultRegister, 0),
 	}
 }
 
 func DNATv6(ip net.IP) []expr.Any {
 	return []expr.Any{
 		ExprImmediate(ip),
-		ExprDNATv6(0, 0),
+		ExprDNATv6(defaultRegister, 0),
 	}
 }
 
@@ -42,7 +42,23 @@ func RedirectTo(port uint16) []expr.Any {
 			Register: defaultRegister,
 			Data:     binaryutil.BigEndian.PutUint16(port),
 		},
-		ExprRedirect(0, 0),
+		ExprRedirect(defaultRegister, 0),
+	}
+}
+
+func ExprTproxy() *expr.TProxy {
+	return &expr.TProxy{
+		Family:      byte(nftables.TableFamilyIPv4),
+		TableFamily: byte(nftables.TableFamilyIPv4),
+		RegPort:     defaultRegister,
+	}
+}
+
+func ExprTproxy6() *expr.TProxy {
+	return &expr.TProxy{
+		Family:      byte(nftables.TableFamilyIPv6),
+		TableFamily: byte(nftables.TableFamilyIPv6),
+		RegPort:     defaultRegister,
 	}
 }
 
