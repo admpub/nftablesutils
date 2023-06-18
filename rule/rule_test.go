@@ -76,16 +76,16 @@ func TestFindRuleByID(t *testing.T) {
 		{UserData: []byte{0xb}},
 	}
 
-	rule1 := findRuleByID([]byte{0x1}, rules)
+	rule1 := findRuleByID([]byte{0x1}, rules, 0)
 	assert.Equal(t, rule1.UserData, []byte{0x1})
 
-	rule2 := findRuleByID([]byte{0xa}, rules)
+	rule2 := findRuleByID([]byte{0xa}, rules, 0)
 	assert.Equal(t, rule2.UserData, []byte{0xa})
 
-	rule3 := findRuleByID([]byte{0xb}, rules)
+	rule3 := findRuleByID([]byte{0xb}, rules, 0)
 	assert.Equal(t, rule3.UserData, []byte{0xb})
 
-	ruleBad := findRuleByID([]byte{0x5}, rules)
+	ruleBad := findRuleByID([]byte{0x5}, rules, 0)
 	assert.Equal(t, ruleBad, &nftables.Rule{})
 }
 
