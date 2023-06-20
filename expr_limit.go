@@ -31,10 +31,10 @@ func ExprLimit(t expr.LimitType, rate uint64, over bool, unit expr.LimitTime, bu
 	}
 }
 
-// ExprLimits ExprLimit wrapper
+// ParseLimits parse expr.Limit
 // rateStr := `1+/p/s`
 // rateStr := `1+/bytes/second`
-func ExprLimits(rateStr string, burst uint32) (*expr.Limit, error) {
+func ParseLimits(rateStr string, burst uint32) (*expr.Limit, error) {
 	e := &expr.Limit{
 		Type:  expr.LimitTypePktBytes,
 		Rate:  0,
@@ -87,18 +87,9 @@ func ExprLimits(rateStr string, burst uint32) (*expr.Limit, error) {
 	return e, err
 }
 
-func SetDynamicLimitDrop(set *nftables.Set, connLimit uint32, rateStr string, burst uint32) (
+func SetConnLimits(connLimit uint32, rateStr string, burst uint32) (
 	[]expr.Any, error) {
-	if !set.Dynamic {
-		return nil, errors.New(`must set *nftables.Set.Dynamic=true`)
-	}
-	if !set.HasTimeout {
-		return nil, errors.New(`must set *nftables.Set.HasTimeout=true`)
-	}
-	if set.Timeout == 0 {
-		return nil, errors.New(`*nftables.Set.Timeout must be set to greater than 0`)
-	}
-	exprLimit, err := ExprLimits(rateStr, burst)
+	exprLimit, err := ParseLimits(rateStr, burst)
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +101,24 @@ func SetDynamicLimitDrop(set *nftables.Set, connLimit uint32, rateStr string, bu
 		})
 	}
 	exprs = append(exprs, exprLimit)
+	return exprs, err
+}
+
+func SetDynamicLimitDropSet(set *nftables.Set, connLimit uint32, rateStr string, burst uint32) (
+	[]expr.Any, error) {
+	if !set.Dynamic {
+		return nil, errors.New(`must set *nftables.Set.Dynamic=true`)
+	}
+	if !set.HasTimeout {
+		return nil, errors.New(`must set *nftables.Set.HasTimeout=true`)
+	}
+	if set.Timeout == 0 {
+		return nil, errors.New(`*nftables.Set.Timeout must be set to greater than 0`)
+	}
+	exprs, err := SetConnLimits(connLimit, rateStr, burst)
+	if err != nil {
+		return nil, err
+	}
 	return []expr.Any{
 		&expr.Dynset{
 			SrcRegKey: defaultRegister,
