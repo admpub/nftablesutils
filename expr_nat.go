@@ -4,7 +4,6 @@ import (
 	"net"
 
 	"github.com/google/nftables"
-	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
 )
 
@@ -81,13 +80,13 @@ func SetDNATv6Range(ipStart net.IP, ipEnd net.IP, portMinAndMax ...uint16) []exp
 func SetRedirect(portMin uint16, portMax ...uint16) []expr.Any {
 	if len(portMax) > 0 && portMax[0] > 0 {
 		return []expr.Any{
-			ExprImmediate(defaultRegister, binaryutil.BigEndian.PutUint16(portMin)),
-			ExprImmediate(defaultRegister+1, binaryutil.BigEndian.PutUint16(portMax[0])),
+			ExprImmediateWithPort(defaultRegister, portMin),
+			ExprImmediateWithPort(defaultRegister+1, portMax[0]),
 			ExprRedirect(defaultRegister, defaultRegister+1),
 		}
 	}
 	return []expr.Any{
-		ExprImmediate(defaultRegister, binaryutil.BigEndian.PutUint16(portMin)),
+		ExprImmediateWithPort(defaultRegister, portMin),
 		ExprRedirect(defaultRegister, 0),
 	}
 }
