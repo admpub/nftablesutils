@@ -21,12 +21,12 @@ func SetNATWithIPAndPort(
 		incr++
 		r = append(r, ExprImmediate(regAddrMax, ipEnd))
 	}
-	if len(portMinAndMax) > 0 {
+	if len(portMinAndMax) > 0 && portMinAndMax[0] > 0 {
 		regPortMin = defaultRegister + incr
 		incr++
 		r = append(r, ExprImmediateWithPort(regPortMin, portMinAndMax[0]))
 	}
-	if len(portMinAndMax) > 1 {
+	if len(portMinAndMax) > 1 && portMinAndMax[1] > 0 {
 		regPortMax = defaultRegister + incr
 		r = append(r, ExprImmediateWithPort(regPortMax, portMinAndMax[1]))
 	}
