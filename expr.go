@@ -4,6 +4,7 @@ import (
 	"net"
 
 	"github.com/google/nftables"
+	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
 )
 
@@ -138,11 +139,20 @@ func ExprCtState(reg uint32) *expr.Ct {
 }
 
 // ExprImmediate wrapper
-func ExprImmediate(ip net.IP) *expr.Immediate {
+func ExprImmediate(reg uint32, ip net.IP) *expr.Immediate {
 	// [ immediate reg 1 0x0158a8c0 ]
 	return &expr.Immediate{
-		Register: defaultRegister,
+		Register: reg,
 		Data:     ip,
+	}
+}
+
+// ExprImmediateWithPort wrapper
+func ExprImmediateWithPort(reg uint32, port uint16) *expr.Immediate {
+	// [ immediate reg 1 0x0158a8c0 ]
+	return &expr.Immediate{
+		Register: reg,
+		Data:     binaryutil.BigEndian.PutUint16(port),
 	}
 }
 

@@ -3,6 +3,7 @@ package biz
 import (
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"testing"
 
@@ -43,12 +44,12 @@ func TestNFTables(t *testing.T) {
 	limits, err := utils.ParseLimits(`10+/p/s`, 100)
 	assert.NoError(t, err)
 	c.Do(func(conn *nftables.Conn) error {
-		target := rule.New(c.TableFilter(), c.ChainInput())
+		filterInput := rule.New(c.TableFilter(), c.ChainInput())
 		exp := utils.JoinExprs(
 			utils.SetProtoTCP(),
 			utils.SetDPort(33306),
 		).Add(limits, utils.Drop())
-		_, err := target.Add(conn, rule.NewData([]byte(`001`), exp))
+		_, err := filterInput.Add(conn, rule.NewData([]byte(`001`), exp))
 		if err != nil {
 			return err
 		}
@@ -56,25 +57,58 @@ func TestNFTables(t *testing.T) {
 			utils.SetIIF(`docker0`),
 			utils.SetProtoTCP(),
 			utils.SetSPort(14444),
-			//[]expr.Any{utils.SourcePort(14444)},
 		).Add(utils.Drop())
-		_, err = target.Add(conn, rule.NewData([]byte(`002`), exp))
+		_, err = filterInput.Add(conn, rule.NewData([]byte(`002`), exp))
 		if err != nil {
 			return err
 		}
+
+		natPrerouting := rule.New(c.TableNAT(), c.ChainPrerouting())
+		exp = utils.JoinExprs(
+			utils.SetOIF(`docker0`),
+			utils.SetProtoTCP(),
+			utils.SetDPort(14445),
+			utils.SetRedirect(20444, 20445),
+		)
+		_, err = natPrerouting.Add(conn, rule.NewData([]byte(`101`), exp))
+		if err != nil {
+			return err
+		}
+		exp = utils.JoinExprs(
+			utils.SetOIF(`docker0`),
+			utils.SetProtoTCP(),
+			utils.SetDPort(14445),
+			utils.SetDNAT(net.ParseIP(`127.0.0.2`).To4()),
+		)
+		_, err = natPrerouting.Add(conn, rule.NewData([]byte(`102`), exp))
+		if err != nil {
+			return err
+		}
+
 		err = conn.Flush()
 		if err != nil {
 			return err
 		}
-		rules, err := target.List(conn)
+		rules, err := filterInput.List(conn)
 		if err != nil {
 			return err
 		}
+		var index int
 		for _, rule := range rules {
+			if len(rule.UserData) == 0 {
+				continue
+			}
 			fmt.Printf("table=%q, chain=%q, position=%d, handle=%d, flags=%d, exprs=%d, userData=%q\n",
 				rule.Table.Name, rule.Chain.Name,
 				rule.Position, rule.Handle, rule.Flags, len(rule.Exprs), rule.UserData,
 			)
+			switch index {
+			case 0:
+				assert.Equal(t, []byte(`001`), rule.UserData)
+			case 1:
+				assert.Equal(t, []byte(`002`), rule.UserData)
+			}
+			index++
 		}
 
 		//ppnocolor.Println(rules)
