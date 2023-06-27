@@ -141,6 +141,6 @@ func ExprDynamicLimitSet(set *nftables.Set, rateStr string, burst uint32, otherE
 		SetID:     set.ID,
 		SetName:   set.Name,
 		Operation: uint32(unix.NFT_DYNSET_OP_ADD),
-		Exprs:     exprs, // 这里不支持 expr.Connlimit
+		Exprs:     exprs, // 这里不支持 expr.Connlimit 与 expr.Limit 同时存在
 	}, err
 }
