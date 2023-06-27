@@ -106,11 +106,20 @@ func SetConnLimits(connLimit uint32, rateStr string, burst uint32) (
 
 func SetDynamicLimitDropSet(set *nftables.Set, connLimit uint32, rateStr string, burst uint32) (
 	[]expr.Any, error) {
+	r, err := SetDynamicLimitSet(set, connLimit, rateStr, burst)
+	if err != nil {
+		return nil, err
+	}
+	r = append(r, Drop())
+	return r, err
+}
+
+func SetDynamicLimitSet(set *nftables.Set, connLimit uint32, rateStr string, burst uint32) ([]expr.Any, error) {
 	dynset, err := ExprDynamicLimitSet(set, connLimit, rateStr, burst)
 	if err != nil {
 		return nil, err
 	}
-	return []expr.Any{dynset, Drop()}, err
+	return []expr.Any{dynset, ExprLookupSet(defaultRegister, set.Name, set.ID)}, err
 }
 
 func ExprDynamicLimitSet(set *nftables.Set, connLimit uint32, rateStr string, burst uint32) (
@@ -130,6 +139,7 @@ func ExprDynamicLimitSet(set *nftables.Set, connLimit uint32, rateStr string, bu
 	}
 	return &expr.Dynset{
 		SrcRegKey: defaultRegister,
+		SetID:     set.ID,
 		SetName:   set.Name,
 		Operation: uint32(unix.NFT_DYNSET_OP_ADD),
 		Exprs:     exprs,

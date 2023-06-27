@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"testing"
+	"time"
 
 	utils "github.com/admpub/nftablesutils"
 	"github.com/admpub/nftablesutils/rule"
@@ -89,6 +90,37 @@ func TestNFTables(t *testing.T) {
 		if err != nil {
 			return err
 		}
+
+		set := utils.GetIPv4AddrSet(c.TableFilter())
+		set.Name = `test_limit`
+		set.Anonymous = false
+		set.Constant = false
+		set.Dynamic = true
+		set.HasTimeout = true
+		set.Timeout = time.Hour
+		err = conn.AddSet(set, []nftables.SetElement{})
+		if err != nil {
+			return err
+		}
+		exprs, err := utils.SetDynamicLimitDropSet(set, 0, `200+/b/s`, 200)
+		if err != nil {
+			return err
+		}
+		exp = utils.JoinExprs(
+			utils.SetProtoTCP(),
+			utils.SetDPortRange(14445, 24445),
+			exprs,
+		)
+		conn.AddRule(&nftables.Rule{
+			Table: c.TableFilter(),
+			Chain: c.cInput,
+			Exprs: exp,
+		})
+		err = conn.Flush()
+		if err != nil {
+			return err
+		}
+
 		rules, err := filterInput.List(conn)
 		if err != nil {
 			return err
