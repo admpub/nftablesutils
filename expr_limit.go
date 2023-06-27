@@ -95,18 +95,15 @@ func SetConnLimits(connLimit uint32, rateStr string, burst uint32) (
 	}
 	exprs := make([]expr.Any, 0, 2)
 	if connLimit > 0 {
-		exprs = append(exprs, &expr.Connlimit{
-			Count: connLimit,
-			Flags: 1,
-		})
+		exprs = append(exprs, ExprConnLimit(connLimit, 1))
 	}
 	exprs = append(exprs, exprLimit)
 	return exprs, err
 }
 
-func SetDynamicLimitDropSet(set *nftables.Set, connLimit uint32, rateStr string, burst uint32) (
+func SetDynamicLimitDropSet(set *nftables.Set, rateStr string, burst uint32, otherExprs ...expr.Any) (
 	[]expr.Any, error) {
-	r, err := SetDynamicLimitSet(set, connLimit, rateStr, burst)
+	r, err := SetDynamicLimitSet(set, rateStr, burst, otherExprs...)
 	if err != nil {
 		return nil, err
 	}
@@ -114,15 +111,15 @@ func SetDynamicLimitDropSet(set *nftables.Set, connLimit uint32, rateStr string,
 	return r, err
 }
 
-func SetDynamicLimitSet(set *nftables.Set, connLimit uint32, rateStr string, burst uint32) ([]expr.Any, error) {
-	dynset, err := ExprDynamicLimitSet(set, connLimit, rateStr, burst)
+func SetDynamicLimitSet(set *nftables.Set, rateStr string, burst uint32, otherExprs ...expr.Any) ([]expr.Any, error) {
+	dynset, err := ExprDynamicLimitSet(set, rateStr, burst, otherExprs...)
 	if err != nil {
 		return nil, err
 	}
 	return []expr.Any{dynset, ExprLookupSet(defaultRegister, set.Name, set.ID)}, err
 }
 
-func ExprDynamicLimitSet(set *nftables.Set, connLimit uint32, rateStr string, burst uint32) (
+func ExprDynamicLimitSet(set *nftables.Set, rateStr string, burst uint32, otherExprs ...expr.Any) (
 	*expr.Dynset, error) {
 	if !set.Dynamic {
 		return nil, errors.New(`must set *nftables.Set.Dynamic=true`)
@@ -133,15 +130,17 @@ func ExprDynamicLimitSet(set *nftables.Set, connLimit uint32, rateStr string, bu
 	if set.Timeout == 0 {
 		return nil, errors.New(`*nftables.Set.Timeout must be set to greater than 0`)
 	}
-	exprs, err := SetConnLimits(connLimit, rateStr, burst)
+	exprLimit, err := ParseLimits(rateStr, burst)
 	if err != nil {
 		return nil, err
 	}
+	exprs := []expr.Any{exprLimit}
+	exprs = append(exprs, otherExprs...)
 	return &expr.Dynset{
 		SrcRegKey: defaultRegister,
 		SetID:     set.ID,
 		SetName:   set.Name,
 		Operation: uint32(unix.NFT_DYNSET_OP_ADD),
-		Exprs:     exprs,
+		Exprs:     exprs, // 这里不支持 expr.Connlimit
 	}, err
 }

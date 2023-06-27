@@ -102,15 +102,16 @@ func TestNFTables(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		exprs, err := utils.SetDynamicLimitDropSet(set, 0, `200+/b/s`, 200)
+		exprs, err := utils.SetDynamicLimitDropSet(set, `200+/b/s`, 200)
 		if err != nil {
 			return err
 		}
 		exp = utils.JoinExprs(
 			utils.SetProtoTCP(),
 			utils.SetDPortRange(14445, 24445),
-			exprs,
 		)
+		exp = exp.Add(utils.ExprConnLimit(2000, 1))
+		exp = exp.Add(exprs...)
 		conn.AddRule(&nftables.Rule{
 			Table: c.TableFilter(),
 			Chain: c.cInput,
