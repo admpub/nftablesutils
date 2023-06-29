@@ -13,6 +13,7 @@ import (
 )
 
 // ExprConnLimit wrapper
+// over==true ? flags=1 : flags=0
 func ExprConnLimit(count uint32, flags uint32) *expr.Connlimit {
 	return &expr.Connlimit{
 		Count: count,
