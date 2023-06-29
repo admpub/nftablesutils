@@ -130,6 +130,9 @@ func ExprDynamicLimitSet(set *nftables.Set, rateStr string, burst uint32, otherE
 	if set.Timeout == 0 {
 		return nil, errors.New(`*nftables.Set.Timeout must be set to greater than 0`)
 	}
+	if set.Counter {
+		set.Counter = false
+	}
 	exprLimit, err := ParseLimits(rateStr, burst)
 	if err != nil {
 		return nil, err

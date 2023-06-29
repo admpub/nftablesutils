@@ -10,6 +10,7 @@ import (
 
 	utils "github.com/admpub/nftablesutils"
 	"github.com/admpub/nftablesutils/rule"
+	setutils "github.com/admpub/nftablesutils/set"
 	"github.com/google/nftables"
 	"github.com/stretchr/testify/assert"
 )
@@ -57,9 +58,29 @@ func TestNFTables(t *testing.T) {
 		exp = utils.JoinExprs(
 			utils.SetIIF(`docker0`),
 			utils.SetProtoTCP(),
-			utils.SetSPort(14444),
-		).Add(utils.Drop())
+			utils.SetSPort(14444, false),
+		).Add(utils.Accept())
 		_, err = filterInput.Add(conn, rule.NewData([]byte(`002`), exp))
+		if err != nil {
+			return err
+		}
+
+		setIPv4 := utils.GetIPv4AddrSet(c.TableFilter(), true)
+		elems, eErr := setutils.GenerateElementsFromIPv4Address([]string{`129.168.0.1-129.168.0.255`})
+		if eErr != nil {
+			return eErr
+		}
+
+		err = conn.AddSet(setIPv4, elems)
+		if err != nil {
+			return err
+		}
+		exp = utils.JoinExprs(
+			utils.SetProtoTCP(),
+			utils.SetSAddrSet(setIPv4, false),
+		)
+		exp = exp.Add(utils.Accept())
+		_, err = filterInput.Add(conn, rule.NewData([]byte(`003`), exp))
 		if err != nil {
 			return err
 		}
@@ -90,6 +111,7 @@ func TestNFTables(t *testing.T) {
 		if err != nil {
 			return err
 		}
+		fmt.Println(`~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1`)
 
 		set := utils.GetIPv4AddrSet(c.TableFilter())
 		set.Name = `test_limit`
