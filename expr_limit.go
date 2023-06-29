@@ -40,7 +40,10 @@ func ParseConnLimit(limitStr string) (*expr.Connlimit, error) {
 		limitStr = strings.TrimSuffix(limitStr, `+`)
 	}
 	count, err := strconv.ParseUint(limitStr, 10, 32)
-	return ExprConnLimit(uint32(count), flags), err
+	if err != nil {
+		return nil, err
+	}
+	return ExprConnLimit(uint32(count), flags), nil
 }
 
 // ParseLimits parse expr.Limit
