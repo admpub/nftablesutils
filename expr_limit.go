@@ -13,6 +13,7 @@ import (
 )
 
 // ExprConnLimit wrapper
+// over==true ? flags=1 : flags=0
 func ExprConnLimit(count uint32, flags uint32) *expr.Connlimit {
 	return &expr.Connlimit{
 		Count: count,
@@ -29,6 +30,20 @@ func ExprLimit(t expr.LimitType, rate uint64, over bool, unit expr.LimitTime, bu
 		Unit:  unit,
 		Burst: burst,
 	}
+}
+
+func ParseConnLimit(limitStr string) (*expr.Connlimit, error) {
+	limitStr = strings.TrimSpace(limitStr)
+	var flags uint32
+	if strings.HasSuffix(limitStr, `+`) {
+		flags = 1
+		limitStr = strings.TrimSuffix(limitStr, `+`)
+	}
+	count, err := strconv.ParseUint(limitStr, 10, 32)
+	if err != nil {
+		return nil, err
+	}
+	return ExprConnLimit(uint32(count), flags), nil
 }
 
 // ParseLimits parse expr.Limit
@@ -87,15 +102,19 @@ func ParseLimits(rateStr string, burst uint32) (*expr.Limit, error) {
 	return e, err
 }
 
-func SetConnLimits(connLimit uint32, rateStr string, burst uint32) (
+func SetConnLimits(connLimitStr string, rateStr string, burst uint32) (
 	[]expr.Any, error) {
 	exprLimit, err := ParseLimits(rateStr, burst)
 	if err != nil {
 		return nil, err
 	}
 	exprs := make([]expr.Any, 0, 2)
-	if connLimit > 0 {
-		exprs = append(exprs, ExprConnLimit(connLimit, 1))
+	if len(connLimitStr) > 0 {
+		connLimit, err := ParseConnLimit(connLimitStr)
+		if err != nil {
+			return nil, err
+		}
+		exprs = append(exprs, connLimit)
 	}
 	exprs = append(exprs, exprLimit)
 	return exprs, err
