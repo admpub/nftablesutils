@@ -58,7 +58,7 @@ type NFTables struct {
 
 // Init nftables firewall.
 func (nft *NFTables) Init() error {
-	if nft.tableFamily == 0 {
+	if nft.tableFamily == nftables.TableFamilyUnspecified {
 		nft.tableFamily = nftables.TableFamilyIPv4
 	}
 	cfg := nft.cfg
