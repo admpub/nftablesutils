@@ -268,12 +268,14 @@ func (nft *NFTables) ApplyBase(c *nftables.Conn) error {
 	}
 
 	// Init sets.
-	return nft.InitSet(c)
+	return nft.InitSet(c, SET_ALL)
 }
 
+// InitSet init sets
+// example: InitSet(c, SET_TRUST|SET_MANAGER)
 func (nft *NFTables) InitSet(c *nftables.Conn, flag int) error {
 	var err error
-	if flag&S_ALL != 0 || flag&S_TRUST != 0 {
+	if flag&SET_ALL != 0 || flag&SET_TRUST != 0 {
 		// add trust_ipset
 		// cmd: nft add set ip filter trust_ipset { type ipv4_addr\; }
 		// --
@@ -286,7 +288,7 @@ func (nft *NFTables) InitSet(c *nftables.Conn, flag int) error {
 		}
 	}
 
-	if flag&S_ALL != 0 || flag&S_MANAGER != 0 {
+	if flag&SET_ALL != 0 || flag&SET_MANAGER != 0 {
 		// add mymanager_ipset
 		// cmd: nft add set ip filter mymanager_ipset { type ipv4_addr\; }
 		// --
@@ -299,7 +301,7 @@ func (nft *NFTables) InitSet(c *nftables.Conn, flag int) error {
 		}
 	}
 
-	if flag&S_ALL != 0 || flag&S_FORWARD != 0 {
+	if flag&SET_ALL != 0 || flag&SET_FORWARD != 0 {
 		// add myforward_ipset
 		// cmd: nft add set ip filter myforward_ipset { type ipv4_addr\; }
 		// --
