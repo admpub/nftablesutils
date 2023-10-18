@@ -180,8 +180,8 @@ func (nft *NFTables) Init() error {
 	return err
 }
 
-func (nft *NFTables) ApplyDefault() error {
-	return nft.apply()
+func (nft *NFTables) ApplyDefault(flag int) error {
+	return nft.apply(flag)
 }
 
 // networkNamespaceBind target by name.
@@ -326,10 +326,11 @@ func (nft *NFTables) InitSet(c *nftables.Conn, flag int) error {
 
 	if flag&SET_ALL != 0 || flag&SET_BLACKLIST != 0 {
 		// add blacklist_ipset
-		// cmd: nft add set ip filter blacklist_ipset { type ipv4_addr\; }
+		// cmd: nft add set ip filter blacklist_ipset { type ipv4_addr\; flags timeout\; }
 		// --
 		// set blacklist_ipset {
 		//         type ipv4_addr
+		//         flags timeout
 		// }
 		err = c.AddSet(nft.filterSetBlacklistIP, nil)
 		if err != nil {
@@ -340,7 +341,7 @@ func (nft *NFTables) InitSet(c *nftables.Conn, flag int) error {
 }
 
 // apply rules
-func (nft *NFTables) apply() error {
+func (nft *NFTables) apply(flag int) error {
 	if !nft.cfg.Enabled {
 		return nil
 	}
@@ -367,25 +368,51 @@ func (nft *NFTables) apply() error {
 	if err != nil {
 		return err
 	}
+	if err = nft.ApplyFilterRule(c, flag); err != nil {
+		return err
+	}
+	// apply configuration
+	err = c.Flush()
+	if err != nil {
+		return err
+	}
+	nft.applied = true
+
+	return nil
+}
+
+func (nft *NFTables) ApplyFilterRule(c *nftables.Conn, flag int) (err error) {
 
 	//
 	// Init filter rules.
 	//
 
-	nft.inputLocalIfaceRules(c)
-	nft.outputLocalIfaceRules(c)
-	if err = nft.applyCommonRules(c, nft.wanIface); err != nil {
-		return err
+	if flag&RULE_ALL != 0 || flag&RULE_LOCAL_IFACE != 0 || flag&RULE_INPUT_LOCAL_IFACE != 0 {
+		nft.inputLocalIfaceRules(c)
 	}
-	err = nft.sdnRules(c)
-	if err != nil {
-		return fmt.Errorf(`nft.sdnRules: %w`, err)
+	if flag&RULE_ALL != 0 || flag&RULE_LOCAL_IFACE != 0 || flag&RULE_OUTPUT_LOCAL_IFACE != 0 {
+		nft.outputLocalIfaceRules(c)
 	}
-	err = nft.sdnForwardRules(c)
-	if err != nil {
-		return fmt.Errorf(`nft.sdnForwardRules: %w`, err)
+	if flag&RULE_ALL != 0 || flag&RULE_WAN_IFACE != 0 {
+		if err = nft.applyCommonRules(c, nft.wanIface); err != nil {
+			return err
+		}
 	}
-	nft.natRules(c)
+	if flag&RULE_ALL != 0 || flag&RULE_SDN != 0 {
+		err = nft.sdnRules(c)
+		if err != nil {
+			return fmt.Errorf(`nft.sdnRules: %w`, err)
+		}
+	}
+	if flag&RULE_ALL != 0 || flag&RULE_SDN_FORWARD != 0 {
+		err = nft.sdnForwardRules(c)
+		if err != nil {
+			return fmt.Errorf(`nft.sdnForwardRules: %w`, err)
+		}
+	}
+	if flag&RULE_ALL != 0 || flag&RULE_NAT != 0 {
+		nft.natRules(c)
+	}
 
 	for _, iface := range nft.cfg.Ifaces {
 		if iface == nft.wanIface {
@@ -396,15 +423,10 @@ func (nft *NFTables) apply() error {
 			return err
 		}
 	}
-
-	// apply configuration
-	err = c.Flush()
-	if err != nil {
-		return err
+	if flag&RULE_ALL != 0 || flag&RULE_BLACKLIST != 0 {
+		err = nft.blacklistRules(c)
 	}
-	nft.applied = true
-
-	return nil
+	return err
 }
 
 // sdnRules to apply.
@@ -595,8 +617,8 @@ func (nft *NFTables) UpdateTrustIPs(del, add []net.IP) error {
 	return nft.updateIPSet(nft.filterSetTrustIP, del, add)
 }
 
-// UpdateMyManagerIPs updates filterSetManagerIP.
-func (nft *NFTables) UpdateMyManagerIPs(del, add []net.IP) error {
+// UpdateManagerIPs updates filterSetManagerIP.
+func (nft *NFTables) UpdateManagerIPs(del, add []net.IP) error {
 	if !nft.applied {
 		return nil
 	}
@@ -604,8 +626,8 @@ func (nft *NFTables) UpdateMyManagerIPs(del, add []net.IP) error {
 	return nft.updateIPSet(nft.filterSetManagerIP, del, add)
 }
 
-// UpdateMyForwardWanIPs updates filterSetForwardIP.
-func (nft *NFTables) UpdateMyForwardWanIPs(del, add []net.IP) error {
+// UpdateForwardWanIPs updates filterSetForwardIP.
+func (nft *NFTables) UpdateForwardWanIPs(del, add []net.IP) error {
 	if !nft.applied {
 		return nil
 	}

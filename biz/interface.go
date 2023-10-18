@@ -2,6 +2,7 @@ package biz
 
 import (
 	"net"
+	"time"
 
 	"github.com/google/nftables"
 )
@@ -10,11 +11,14 @@ type INFTables interface {
 	// UpdateTrustIPs updates filterSetTrustIP.
 	UpdateTrustIPs(del, add []net.IP) error
 
-	// UpdateMyManagerIPs updates filterSetManagerIP.
-	UpdateMyManagerIPs(del, add []net.IP) error
+	// UpdateManagerIPs updates filterSetManagerIP.
+	UpdateManagerIPs(del, add []net.IP) error
 
 	// UpdateMyForwardWanIPs updates filterSetForwardIP.
-	UpdateMyForwardWanIPs(del, add []net.IP) error
+	UpdateForwardWanIPs(del, add []net.IP) error
+
+	// Ban adding ip to backlist.
+	Ban(add []net.IP, timeout time.Duration) error
 
 	// Cleanup rules to default policy filtering.
 	Cleanup() error
