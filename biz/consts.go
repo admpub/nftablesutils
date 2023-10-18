@@ -21,12 +21,16 @@ const (
 	ApplyTypeDNS  = `smtp`
 )
 
-var ApplyAll = []string{ApplyTypeHTTP, ApplyTypeSMTP, ApplyTypeDNS}
+var ApplyAll = []string{
+	ApplyTypeHTTP,
+	ApplyTypeSMTP,
+	ApplyTypeDNS,
+}
 
 const (
-	S_ALL       = 0
-	S_TRUST     = 1
-	S_MANAGER   = 2
-	S_FORWARD   = 4
-	S_BLACKLIST = 8
+	SET_TRUST     = 1   // add filterSetTrustIP
+	SET_MANAGER   = 2   // add filterSetManagerIP
+	SET_FORWARD   = 4   // add filterSetForwardIP
+	SET_BLACKLIST = 8   // add filterSetBlacklistIP
+	SET_ALL       = 512 // add filterSetTrustIP filterSetManagerIP filterSetForwardIP filterSetBlacklistIP
 )

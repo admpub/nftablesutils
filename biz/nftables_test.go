@@ -39,7 +39,7 @@ func TestNFTables(t *testing.T) {
 		TrustPorts:       []uint16{22},
 		Applies:          []string{ApplyTypeDNS, ApplyTypeHTTP, ApplyTypeSMTP},
 	}
-	c := New(nftables.TableFamilyIPv4, cfg, []uint16{8080})
+	c := New(nftables.TableFamilyIPv6, cfg, []uint16{8080})
 	c.Init()
 	err = c.ApplyDefault()
 	assert.NoError(t, err)
@@ -64,49 +64,48 @@ func TestNFTables(t *testing.T) {
 		if err != nil {
 			return err
 		}
+		if c.tableFamily == nftables.TableFamilyIPv4 {
+			setIPv4 := utils.GetIPv4AddrSet(c.TableFilter(), true)
+			elems, eErr := setutils.GenerateElementsFromIPv4Address([]string{`129.168.0.1-129.168.0.255`})
+			if eErr != nil {
+				return eErr
+			}
 
-		setIPv4 := utils.GetIPv4AddrSet(c.TableFilter(), true)
-		elems, eErr := setutils.GenerateElementsFromIPv4Address([]string{`129.168.0.1-129.168.0.255`})
-		if eErr != nil {
-			return eErr
+			err = conn.AddSet(setIPv4, elems)
+			if err != nil {
+				return err
+			}
+			exp = utils.JoinExprs(
+				utils.SetProtoTCP(),
+				utils.SetSAddrSet(setIPv4, false),
+			)
+			exp = exp.Add(utils.Accept())
+			_, err = filterInput.Add(conn, rule.NewData([]byte(`003`), exp))
+			if err != nil {
+				return err
+			}
+			natPrerouting := rule.New(c.TableNAT(), c.ChainPrerouting())
+			exp = utils.JoinExprs(
+				utils.SetOIF(`docker0`),
+				utils.SetProtoTCP(),
+				utils.SetDPort(14445),
+				utils.SetRedirect(20444, 20445),
+			)
+			_, err = natPrerouting.Add(conn, rule.NewData([]byte(`101`), exp))
+			if err != nil {
+				return err
+			}
+			exp = utils.JoinExprs(
+				utils.SetOIF(`docker0`),
+				utils.SetProtoTCP(),
+				utils.SetDPort(14445),
+				utils.SetDNAT(net.ParseIP(`127.0.0.2`).To4()),
+			)
+			_, err = natPrerouting.Add(conn, rule.NewData([]byte(`102`), exp))
+			if err != nil {
+				return err
+			}
 		}
-
-		err = conn.AddSet(setIPv4, elems)
-		if err != nil {
-			return err
-		}
-		exp = utils.JoinExprs(
-			utils.SetProtoTCP(),
-			utils.SetSAddrSet(setIPv4, false),
-		)
-		exp = exp.Add(utils.Accept())
-		_, err = filterInput.Add(conn, rule.NewData([]byte(`003`), exp))
-		if err != nil {
-			return err
-		}
-
-		natPrerouting := rule.New(c.TableNAT(), c.ChainPrerouting())
-		exp = utils.JoinExprs(
-			utils.SetOIF(`docker0`),
-			utils.SetProtoTCP(),
-			utils.SetDPort(14445),
-			utils.SetRedirect(20444, 20445),
-		)
-		_, err = natPrerouting.Add(conn, rule.NewData([]byte(`101`), exp))
-		if err != nil {
-			return err
-		}
-		exp = utils.JoinExprs(
-			utils.SetOIF(`docker0`),
-			utils.SetProtoTCP(),
-			utils.SetDPort(14445),
-			utils.SetDNAT(net.ParseIP(`127.0.0.2`).To4()),
-		)
-		_, err = natPrerouting.Add(conn, rule.NewData([]byte(`102`), exp))
-		if err != nil {
-			return err
-		}
-
 		err = conn.Flush()
 		if err != nil {
 			return err
