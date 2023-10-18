@@ -5,6 +5,7 @@ import (
 	"net"
 	"runtime"
 	"strings"
+	"time"
 
 	utils "github.com/admpub/nftablesutils"
 	"github.com/google/nftables"
@@ -48,8 +49,9 @@ type NFTables struct {
 	cPostrouting *nftables.Chain
 
 	filterSetTrustIP     *nftables.Set
-	filterSetMyManagerIP *nftables.Set
-	filterSetMyForwardIP *nftables.Set
+	filterSetManagerIP   *nftables.Set
+	filterSetForwardIP   *nftables.Set
+	filterSetBlacklistIP *nftables.Set
 
 	managerPorts []uint16
 
@@ -82,7 +84,7 @@ func (nft *NFTables) Init() error {
 
 	tFilter := &nftables.Table{
 		Family: nft.tableFamily,
-		Name:   cfg.TablePrefix + TableFilter,
+		Name:   cfg.TablePrefix + TableFilter + cfg.TableSuffix,
 	}
 	cInput := &nftables.Chain{
 		Name:     ChainInput,
@@ -112,7 +114,7 @@ func (nft *NFTables) Init() error {
 	tNAT := &nftables.Table{
 		Family: nft.tableFamily,
 		//Family: nftables.TableFamilyIPv4,
-		Name: cfg.TablePrefix + TableNAT,
+		Name: cfg.TablePrefix + TableNAT + cfg.TableSuffix,
 	}
 	cPrerouting := &nftables.Chain{
 		Name:     ChainPreRouting,
@@ -134,20 +136,27 @@ func (nft *NFTables) Init() error {
 		Table:   tFilter,
 		KeyType: nftables.TypeIPAddr,
 	}
-	filterSetMyManagerIP := &nftables.Set{ // input / output IP whitelist
-		Name:    "my_manager_ipset",
+	filterSetManagerIP := &nftables.Set{ // input / output IP whitelist
+		Name:    "manager_ipset",
 		Table:   tFilter,
 		KeyType: nftables.TypeIPAddr,
 	}
-	filterSetMyForwardIP := &nftables.Set{ // forward IP whitelist
-		Name:    "my_forward_ipset",
+	filterSetForwardIP := &nftables.Set{ // forward IP whitelist
+		Name:    "forward_ipset",
 		Table:   tFilter,
 		KeyType: nftables.TypeIPAddr,
+	}
+	filterSetBlacklistIP := &nftables.Set{ // forward IP whitelist
+		Name:       "blacklist_ipset",
+		Table:      tFilter,
+		KeyType:    nftables.TypeIPAddr,
+		HasTimeout: true,
 	}
 	if tFilter.Family == nftables.TableFamilyIPv6 {
 		filterSetTrustIP.KeyType = nftables.TypeIP6Addr
-		filterSetMyManagerIP.KeyType = nftables.TypeIP6Addr
-		filterSetMyForwardIP.KeyType = nftables.TypeIP6Addr
+		filterSetManagerIP.KeyType = nftables.TypeIP6Addr
+		filterSetForwardIP.KeyType = nftables.TypeIP6Addr
+		filterSetBlacklistIP.KeyType = nftables.TypeIP6Addr
 	}
 
 	nft.wanIface = wanIface
@@ -165,8 +174,9 @@ func (nft *NFTables) Init() error {
 	nft.cPostrouting = cPostrouting
 
 	nft.filterSetTrustIP = filterSetTrustIP
-	nft.filterSetMyManagerIP = filterSetMyManagerIP
-	nft.filterSetMyForwardIP = filterSetMyForwardIP
+	nft.filterSetManagerIP = filterSetManagerIP
+	nft.filterSetForwardIP = filterSetForwardIP
+	nft.filterSetBlacklistIP = filterSetBlacklistIP
 	return err
 }
 
@@ -268,7 +278,7 @@ func (nft *NFTables) ApplyBase(c *nftables.Conn) error {
 	}
 
 	// Init sets.
-	return nft.InitSet(c)
+	return nft.InitSet(c, S_ALL)
 }
 
 func (nft *NFTables) InitSet(c *nftables.Conn, flag int) error {
@@ -287,28 +297,41 @@ func (nft *NFTables) InitSet(c *nftables.Conn, flag int) error {
 	}
 
 	if flag&S_ALL != 0 || flag&S_MANAGER != 0 {
-		// add mymanager_ipset
-		// cmd: nft add set ip filter mymanager_ipset { type ipv4_addr\; }
+		// add manager_ipset
+		// cmd: nft add set ip filter manager_ipset { type ipv4_addr\; }
 		// --
-		// set mymanager_ipset {
+		// set manager_ipset {
 		//         type ipv4_addr
 		// }
-		err = c.AddSet(nft.filterSetMyManagerIP, nil)
+		err = c.AddSet(nft.filterSetManagerIP, nil)
 		if err != nil {
-			return fmt.Errorf(`nft.AddSet(%q): %w`, nft.filterSetMyManagerIP.Name, err)
+			return fmt.Errorf(`nft.AddSet(%q): %w`, nft.filterSetManagerIP.Name, err)
 		}
 	}
 
 	if flag&S_ALL != 0 || flag&S_FORWARD != 0 {
-		// add myforward_ipset
-		// cmd: nft add set ip filter myforward_ipset { type ipv4_addr\; }
+		// add forward_ipset
+		// cmd: nft add set ip filter forward_ipset { type ipv4_addr\; }
 		// --
-		// set myforward_ipset {
+		// set forward_ipset {
 		//         type ipv4_addr
 		// }
-		err = c.AddSet(nft.filterSetMyForwardIP, nil)
+		err = c.AddSet(nft.filterSetForwardIP, nil)
 		if err != nil {
-			return fmt.Errorf(`nft.AddSet(%q): %w`, nft.filterSetMyForwardIP.Name, err)
+			return fmt.Errorf(`nft.AddSet(%q): %w`, nft.filterSetForwardIP.Name, err)
+		}
+	}
+
+	if flag&S_ALL != 0 || flag&S_BLACKLIST != 0 {
+		// add blacklist_ipset
+		// cmd: nft add set ip filter blacklist_ipset { type ipv4_addr\; }
+		// --
+		// set blacklist_ipset {
+		//         type ipv4_addr
+		// }
+		err = c.AddSet(nft.filterSetBlacklistIP, nil)
+		if err != nil {
+			return fmt.Errorf(`nft.AddSet(%q): %w`, nft.filterSetBlacklistIP.Name, err)
 		}
 	}
 	return err
@@ -467,9 +490,9 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	exprs = append(exprs, utils.SetDPortSet(portSet)...)
 	switch nft.tableFamily {
 	case nftables.TableFamilyIPv4:
-		exprs = append(exprs, utils.SetSAddrSet(nft.filterSetMyManagerIP)...)
+		exprs = append(exprs, utils.SetSAddrSet(nft.filterSetManagerIP)...)
 	case nftables.TableFamilyIPv6:
-		exprs = append(exprs, utils.SetSAddrIPv6Set(nft.filterSetMyManagerIP)...)
+		exprs = append(exprs, utils.SetSAddrIPv6Set(nft.filterSetManagerIP)...)
 	}
 	exprs = append(exprs, utils.SetConntrackStateSet(ctStateSet)...)
 	exprs = append(exprs, utils.ExprAccept())
@@ -530,9 +553,9 @@ func (nft *NFTables) sdnRules(c *nftables.Conn) error {
 	exprs = append(exprs, utils.SetSPortSet(portSet)...)
 	switch nft.tableFamily {
 	case nftables.TableFamilyIPv4:
-		exprs = append(exprs, utils.SetDAddrSet(nft.filterSetMyManagerIP)...)
+		exprs = append(exprs, utils.SetDAddrSet(nft.filterSetManagerIP)...)
 	case nftables.TableFamilyIPv6:
-		exprs = append(exprs, utils.SetDAddrIPv6Set(nft.filterSetMyManagerIP)...)
+		exprs = append(exprs, utils.SetDAddrIPv6Set(nft.filterSetManagerIP)...)
 	}
 	exprs = append(exprs, utils.SetConntrackStateEstablished()...)
 	exprs = append(exprs, utils.ExprAccept())
@@ -570,25 +593,34 @@ func (nft *NFTables) UpdateTrustIPs(del, add []net.IP) error {
 	return nft.updateIPSet(nft.filterSetTrustIP, del, add)
 }
 
-// UpdateMyManagerIPs updates filterSetMyManagerIP.
+// UpdateMyManagerIPs updates filterSetManagerIP.
 func (nft *NFTables) UpdateMyManagerIPs(del, add []net.IP) error {
 	if !nft.applied {
 		return nil
 	}
 
-	return nft.updateIPSet(nft.filterSetMyManagerIP, del, add)
+	return nft.updateIPSet(nft.filterSetManagerIP, del, add)
 }
 
-// UpdateMyForwardWanIPs updates filterSetMyForwardIP.
+// UpdateMyForwardWanIPs updates filterSetForwardIP.
 func (nft *NFTables) UpdateMyForwardWanIPs(del, add []net.IP) error {
 	if !nft.applied {
 		return nil
 	}
 
-	return nft.updateIPSet(nft.filterSetMyForwardIP, del, add)
+	return nft.updateIPSet(nft.filterSetForwardIP, del, add)
 }
 
-func (nft *NFTables) updateIPSet(set *nftables.Set, del, add []net.IP) error {
+// Ban adding ip to backlist.
+func (nft *NFTables) Ban(add []net.IP, timeout time.Duration) error {
+	if !nft.applied {
+		return nil
+	}
+
+	return nft.updateIPSet(nft.filterSetBlacklistIP, nil, add, timeout)
+}
+
+func (nft *NFTables) updateIPSet(set *nftables.Set, del, add []net.IP, timeout ...time.Duration) error {
 	// bind network namespace if it was set in config
 	c, err := nft.networkNamespaceBind()
 	if err != nil {
@@ -596,11 +628,15 @@ func (nft *NFTables) updateIPSet(set *nftables.Set, del, add []net.IP) error {
 	}
 	// release network namespace finally
 	defer nft.networkNamespaceRelease()
+	var t time.Duration
+	if len(timeout) > 0 {
+		t = timeout[0]
+	}
 
 	if len(del) > 0 {
 		elements := make([]nftables.SetElement, len(del))
 		for i, v := range del {
-			elements[i] = nftables.SetElement{Key: v}
+			elements[i] = nftables.SetElement{Key: v, Timeout: t}
 		}
 		err = c.SetDeleteElements(set, elements)
 		if err != nil {
@@ -611,7 +647,7 @@ func (nft *NFTables) updateIPSet(set *nftables.Set, del, add []net.IP) error {
 	if len(add) > 0 {
 		elements := make([]nftables.SetElement, len(add))
 		for i, v := range add {
-			elements[i] = nftables.SetElement{Key: v}
+			elements[i] = nftables.SetElement{Key: v, Timeout: t}
 		}
 		err = c.SetAddElements(set, elements)
 		if err != nil {
@@ -719,12 +755,16 @@ func (nft *NFTables) FilterSetTrustIP() *nftables.Set {
 	return nft.filterSetTrustIP
 }
 
-func (nft *NFTables) FilterSetMyManagerIP() *nftables.Set {
-	return nft.filterSetMyManagerIP
+func (nft *NFTables) FilterSetManagerIP() *nftables.Set {
+	return nft.filterSetManagerIP
 }
 
-func (nft *NFTables) FilterSetMyForwardIP() *nftables.Set {
-	return nft.filterSetMyForwardIP
+func (nft *NFTables) FilterSetForwardIP() *nftables.Set {
+	return nft.filterSetForwardIP
+}
+
+func (nft *NFTables) FilterSetBlacklistIP() *nftables.Set {
+	return nft.filterSetBlacklistIP
 }
 
 func (nft *NFTables) Do(f func(conn *nftables.Conn) error) error {

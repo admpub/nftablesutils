@@ -24,8 +24,9 @@ const (
 var ApplyAll = []string{ApplyTypeHTTP, ApplyTypeSMTP, ApplyTypeDNS}
 
 const (
-	S_ALL     = 0
-	S_TRUST   = 1
-	S_MANAGER = 2
-	S_FORWARD = 4
+	S_ALL       = 0
+	S_TRUST     = 1
+	S_MANAGER   = 2
+	S_FORWARD   = 4
+	S_BLACKLIST = 8
 )

@@ -10,10 +10,10 @@ type INFTables interface {
 	// UpdateTrustIPs updates filterSetTrustIP.
 	UpdateTrustIPs(del, add []net.IP) error
 
-	// UpdateMyManagerIPs updates filterSetMyManagerIP.
+	// UpdateMyManagerIPs updates filterSetManagerIP.
 	UpdateMyManagerIPs(del, add []net.IP) error
 
-	// UpdateMyForwardWanIPs updates filterSetMyForwardIP.
+	// UpdateMyForwardWanIPs updates filterSetForwardIP.
 	UpdateMyForwardWanIPs(del, add []net.IP) error
 
 	// Cleanup rules to default policy filtering.
@@ -37,8 +37,9 @@ type INFTables interface {
 	ChainPostrouting() *nftables.Chain
 
 	FilterSetTrustIP() *nftables.Set
-	FilterSetMyManagerIP() *nftables.Set
-	FilterSetMyForwardIP() *nftables.Set
+	FilterSetManagerIP() *nftables.Set
+	FilterSetForwardIP() *nftables.Set
+	FilterSetBlacklistIP() *nftables.Set
 
 	Do(f func(conn *nftables.Conn) error) error
 }
