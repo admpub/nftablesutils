@@ -637,10 +637,6 @@ func (nft *NFTables) UpdateForwardWanIPs(del, add []net.IP) error {
 
 // Ban adding ip to backlist.
 func (nft *NFTables) Ban(add []net.IP, timeout time.Duration) error {
-	if !nft.applied {
-		return nil
-	}
-
 	return nft.updateIPSet(nft.filterSetBlacklistIP, nil, add, timeout)
 }
 
