@@ -53,6 +53,9 @@ type NFTables struct {
 	filterSetForwardIP   *nftables.Set
 	filterSetBlacklistIP *nftables.Set
 
+	tables       []*nftables.Table
+	chains       []*nftables.Chain
+	sets         []*nftables.Set
 	managerPorts []uint16
 
 	applied bool
@@ -177,6 +180,10 @@ func (nft *NFTables) Init() error {
 	nft.filterSetManagerIP = filterSetManagerIP
 	nft.filterSetForwardIP = filterSetForwardIP
 	nft.filterSetBlacklistIP = filterSetBlacklistIP
+
+	nft.tables = []*nftables.Table{nft.tFilter, nft.tNAT}
+	nft.chains = []*nftables.Chain{nft.cInput, nft.cOutput, nft.cForward, nft.cPrerouting, nft.cPostrouting}
+	nft.sets = []*nftables.Set{nft.filterSetBlacklistIP, nft.filterSetForwardIP, nft.filterSetManagerIP, nft.filterSetTrustIP}
 	return err
 }
 
@@ -357,8 +364,9 @@ func (nft *NFTables) apply(flag int) error {
 	if nft.cfg.ClearRuleset {
 		c.FlushRuleset()
 	} else {
-		c.FlushTable(nft.tFilter)
-		c.FlushTable(nft.tNAT)
+		for _, table := range nft.tables {
+			c.FlushTable(table)
+		}
 		_ = c.Flush()
 	}
 	//
@@ -694,14 +702,56 @@ func (nft *NFTables) Cleanup() error {
 	if nft.cfg.ClearRuleset {
 		c.FlushRuleset()
 	} else {
-		c.FlushTable(nft.tFilter)
-		c.FlushTable(nft.tNAT)
-		_ = c.Flush()
+		for _, table := range nft.tables {
+			c.FlushTable(table)
+		}
 	}
 	_ = c.Flush()
 	nft.applied = false
 
 	return nil
+}
+
+func (nft *NFTables) DeleteAll(c *nftables.Conn) {
+	for _, table := range nft.tables {
+		c.DelTable(table)
+	}
+}
+
+func (nft *NFTables) FlushChain(c *nftables.Conn, chains ...*nftables.Chain) {
+	if len(chains) == 0 {
+		chains = nft.chains
+	}
+	for _, chain := range chains {
+		c.FlushChain(chain)
+	}
+}
+
+func (nft *NFTables) DeleteChain(c *nftables.Conn, chains ...*nftables.Chain) {
+	if len(chains) == 0 {
+		chains = nft.chains
+	}
+	for _, chain := range chains {
+		c.DelChain(chain)
+	}
+}
+
+func (nft *NFTables) FlushSet(c *nftables.Conn, sets ...*nftables.Set) {
+	if len(sets) == 0 {
+		sets = nft.sets
+	}
+	for _, set := range sets {
+		c.FlushSet(set)
+	}
+}
+
+func (nft *NFTables) DeleteSet(c *nftables.Conn, sets ...*nftables.Set) {
+	if len(sets) == 0 {
+		sets = nft.sets
+	}
+	for _, set := range sets {
+		c.DelSet(set)
+	}
 }
 
 // WanIP returns ip address of wan interface.
