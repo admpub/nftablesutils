@@ -17,5 +17,6 @@ func TestSetCIDRMatcher(t *testing.T) {
 	addr := ipToAddr.Unmap()
 	assert.True(t, addr.Is4())
 	assert.False(t, addr.Is6())
-	SetCIDRMatcher(ExprDirectionDestination, `127.0.0.1/32`, false)
+	_, err = SetCIDRMatcher(ExprDirectionDestination, `127.0.0.1/32`, false)
+	assert.NoError(t, err)
 }
