@@ -33,7 +33,11 @@ func IPv6DestinationAddress(reg uint32) *expr.Payload {
 // SetCIDRMatcher(ExprDirectionSource, `127.0.0.0/24`)
 func SetCIDRMatcher(direction ExprDirection, cidr string, isINet bool, isEq ...bool) []expr.Any {
 	if !strings.Contains(cidr, `/`) {
-		cidr += `/32`
+		if strings.Contains(cidr, `:`) {
+			cidr += `/128`
+		} else {
+			cidr += `/32`
+		}
 	}
 	ip, network, _ := net.ParseCIDR(cidr)
 	ipToAddr, _ := netip.AddrFromSlice(ip)

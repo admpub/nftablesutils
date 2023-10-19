@@ -8,6 +8,7 @@ import (
 	"time"
 
 	utils "github.com/admpub/nftablesutils"
+	setutils "github.com/admpub/nftablesutils/set"
 	"github.com/google/nftables"
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
@@ -153,6 +154,8 @@ func (nft *NFTables) Init() error {
 		Name:       "blacklist_ipset",
 		Table:      tFilter,
 		KeyType:    nftables.TypeIPAddr,
+		Interval:   true,
+		Counter:    true,
 		HasTimeout: true,
 	}
 	if tFilter.Family == nftables.TableFamilyIPv6 {
@@ -644,8 +647,28 @@ func (nft *NFTables) UpdateForwardWanIPs(del, add []net.IP) error {
 }
 
 // Ban adding ip to backlist.
-func (nft *NFTables) Ban(add []net.IP, timeout time.Duration) error {
-	return nft.updateIPSet(nft.filterSetBlacklistIP, nil, add, timeout)
+func (nft *NFTables) Ban(ipAddresses []string, timeout time.Duration) error {
+	var elements []nftables.SetElement
+	var err error
+	switch nft.tableFamily {
+	case nftables.TableFamilyIPv4:
+		elements, err = setutils.GenerateElementsFromIPv4Address(ipAddresses, timeout)
+	case nftables.TableFamilyIPv6:
+		elements, err = setutils.GenerateElementsFromIPv6Address(ipAddresses, timeout)
+	}
+	if err != nil {
+		return err
+	}
+	if len(elements) == 0 {
+		return nil
+	}
+	return nft.Do(func(conn *nftables.Conn) error {
+		err := conn.SetAddElements(nft.filterSetBlacklistIP, elements)
+		if err != nil {
+			return err
+		}
+		return conn.Flush()
+	})
 }
 
 func (nft *NFTables) updateIPSet(set *nftables.Set, del, add []net.IP, timeout ...time.Duration) error {

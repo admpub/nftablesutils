@@ -45,7 +45,7 @@ func TestNFTables(t *testing.T) {
 	assert.NoError(t, err)
 	limits, err := utils.ParseLimits(`10+/p/s`, 100)
 	assert.NoError(t, err)
-	c.Do(func(conn *nftables.Conn) error {
+	err = c.Do(func(conn *nftables.Conn) error {
 		filterInput := rule.New(c.TableFilter(), c.ChainInput())
 		exp := utils.JoinExprs(
 			utils.SetProtoTCP(),
@@ -168,12 +168,17 @@ func TestNFTables(t *testing.T) {
 		//ppnocolor.Println(rules)
 		return err
 	})
+	assert.NoError(t, err)
 
 	if c.tableFamily == nftables.TableFamilyIPv4 {
-		c.Ban([]net.IP{net.ParseIP(`123.123.123.123`)}, time.Hour*24)
+		err = c.Ban([]string{
+			`123.123.123.123`,
+			`10.0.0.0/8`, `11.11.11.1-11.11.11.11`,
+		}, time.Hour*24)
 	} else {
-		c.Ban([]net.IP{net.ParseIP(`2008:8288:5000:7600::1e5a`)}, time.Hour*24)
+		err = c.Ban([]string{`2008:8288:5000:7600::1e5a`}, time.Hour*24)
 	}
+	assert.NoError(t, err)
 	testServer()
 	c.Cleanup()
 	_ = cfg
