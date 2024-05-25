@@ -80,6 +80,18 @@ func SetSPortRange(min uint16, max uint16) []expr.Any {
 	}
 }
 
+// ExprPortRange returns a new port range expression.
+func ExprPortRange(startPort uint16, endPort uint16) []expr.Any {
+	return []expr.Any{
+		&expr.Range{
+			Op:       expr.CmpOpEq,
+			Register: defaultRegister,
+			FromData: binaryutil.BigEndian.PutUint16(startPort),
+			ToData:   binaryutil.BigEndian.PutUint16(endPort),
+		},
+	}
+}
+
 // SetDPortRange returns a new port range expression.
 func SetDPortRange(min uint16, max uint16) []expr.Any {
 	return []expr.Any{

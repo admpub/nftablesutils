@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -64,6 +65,30 @@ func TestNFTables(t *testing.T) {
 		if err != nil {
 			return err
 		}
+
+		setPort := utils.GetPortSet(c.TableFilter())
+		setPort.Interval = true
+		elems, eErr := setutils.GenerateElementsFromPort([]string{
+			`80`, `443`,
+			`60001-60005`,
+		})
+		if eErr != nil {
+			return eErr
+		}
+		err = conn.AddSet(setPort, elems)
+		if err != nil {
+			return err
+		}
+		exp = utils.JoinExprs(
+			utils.SetProtoTCP(),
+			utils.SetDPortSet(setPort, true),
+		)
+		exp = exp.Add(utils.Accept())
+		_, err = filterInput.Add(conn, rule.NewData([]byte(`004`), exp))
+		if err != nil {
+			return err
+		}
+
 		if c.tableFamily == nftables.TableFamilyIPv4 {
 			setIPv4 := utils.GetIPv4AddrSet(c.TableFilter(), true)
 			elems, eErr := setutils.GenerateElementsFromIPv4Address([]string{`129.168.0.1-129.168.0.255`})
@@ -84,6 +109,7 @@ func TestNFTables(t *testing.T) {
 			if err != nil {
 				return err
 			}
+
 			natPrerouting := rule.New(c.TableNAT(), c.ChainPrerouting())
 			exp = utils.JoinExprs(
 				utils.SetOIF(`docker0`),
@@ -166,6 +192,12 @@ func TestNFTables(t *testing.T) {
 		}
 
 		//ppnocolor.Println(rules)
+		b, e := exec.Command(`nft`, `list`, `ruleset`).CombinedOutput()
+		if e != nil {
+			t.Log(err)
+		} else {
+			fmt.Println(string(b))
+		}
 		return err
 	})
 	assert.NoError(t, err)
